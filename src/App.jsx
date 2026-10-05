@@ -1,6 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { initialFinancialData, mockVouchers } from '@/data/mockData';
+import { recordAppLaunch } from '@/plugins/nativeStorage';
 import RegisterScreen from '@/screens/RegisterScreen';
 import CompleteProfileScreen from '@/screens/CompleteProfileScreen';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -9,6 +10,12 @@ import ProductsScreen from '@/screens/ProductsScreen';
 import VouchersScreen from '@/screens/VouchersScreen';
 import OrdersScreen from '@/screens/OrdersScreen';
 function App() {
+    useEffect(() => {
+        // Uses Kotlin/Swift on native builds and localStorage on the web.
+        recordAppLaunch().catch(() => {
+            // Native capabilities are optional; the existing dashboard remains usable.
+        });
+    }, []);
     const [screen, setScreen] = useState('REGISTER');
     const [vendor, setVendor] = useState({});
     const [financialData, setFinancialData] = useState(initialFinancialData);
