@@ -19,9 +19,10 @@ public class NativeStoragePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func set(_ call: CAPPluginCall) {
-        guard let key = call.getString("key", nil), !key.isEmpty,
-              let value = call.getString("value", nil) else {
-            call.reject("key and value are required")
+        let key = call.getString("key", "")
+        let value = call.getString("value", "")
+        guard !key.isEmpty, !value.isEmpty else {
+            call.resolve(["error": "key and value are required"])
             return
         }
 
@@ -30,8 +31,9 @@ public class NativeStoragePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func get(_ call: CAPPluginCall) {
-        guard let key = call.getString("key", nil), !key.isEmpty else {
-            call.reject("key is required")
+        let key = call.getString("key", "")
+        guard !key.isEmpty else {
+            call.resolve(["error": "key is required"])
             return
         }
 
@@ -39,8 +41,9 @@ public class NativeStoragePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func remove(_ call: CAPPluginCall) {
-        guard let key = call.getString("key", nil), !key.isEmpty else {
-            call.reject("key is required")
+        let key = call.getString("key", "")
+        guard !key.isEmpty else {
+            call.resolve(["error": "key is required"])
             return
         }
 
