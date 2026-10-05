@@ -54,15 +54,15 @@ const iconClasses = {
   neutral: 'bg-slate-100 text-slate-600',
 };
 
-export default function OtaStatusCard({ status, onRefresh, refreshing }) {
-  const [collapsed, setCollapsed] = useState(false);
+export default function OtaStatusCard({ status, onRefresh, refreshing, compact = false }) {
+  const [collapsed, setCollapsed] = useState(compact);
   const config = statusConfig[status?.status] || statusConfig.checking;
   const Icon = config.icon;
   const progress = Math.max(0, Math.min(100, status?.progress || 0));
   const isBusy = refreshing || status?.status === 'checking' || status?.status === 'downloading';
 
   return (
-    <section className={`mb-6 overflow-hidden rounded-2xl border shadow-sm ${toneClasses[config.tone]}`} dir="rtl">
+    <section className={`${compact ? 'mb-0' : 'mb-6'} overflow-hidden rounded-2xl border shadow-sm ${toneClasses[config.tone]}`} dir="rtl">
       <button
         type="button"
         onClick={() => setCollapsed(value => !value)}

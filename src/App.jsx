@@ -64,10 +64,10 @@ function App() {
     };
     // Render screens outside the dashboard layout
     if (screen === 'REGISTER') {
-        return _jsx(RegisterScreen, { onRegisterComplete: handleRegisterComplete });
+        return (_jsxs("div", { className: "relative min-h-screen", children: [_jsx(RegisterScreen, { onRegisterComplete: handleRegisterComplete }), _jsx("div", { className: "fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-xl", children: _jsx(OtaStatusCard, { status: otaStatus, onRefresh: runOtaCheck, refreshing: otaRefreshing, compact: true }) })] }));
     }
     if (screen === 'COMPLETE_PROFILE') {
-        return _jsx(CompleteProfileScreen, { vendorData: vendor, onComplete: handleProfileComplete });
+        return (_jsxs("div", { className: "relative min-h-screen", children: [_jsx(CompleteProfileScreen, { vendorData: vendor, onComplete: handleProfileComplete }), _jsx("div", { className: "fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-xl", children: _jsx(OtaStatusCard, { status: otaStatus, onRefresh: runOtaCheck, refreshing: otaRefreshing, compact: true }) })] }));
     }
     // Dashboard screens with layout
     const fullVendor = vendor;
