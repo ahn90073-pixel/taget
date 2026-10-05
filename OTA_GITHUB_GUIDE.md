@@ -10,6 +10,8 @@
 
 لم يتغير `com.taget.app` لأنه هوية التطبيق في Android وiOS. تغييره بعد النشر سيعامل التطبيق كتطبيق جديد.
 
+يدعم إصدار iOS الحالي ابتداءً من **iOS 16** لأن Plugin Live Update يتطلب iOS 16 أو أحدث.
+
 ## كيف يعمل OTA
 
 تمت إضافة إضافة `@capawesome/capacitor-live-update` مع عميل داخل:
