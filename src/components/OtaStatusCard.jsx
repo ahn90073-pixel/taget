@@ -32,6 +32,12 @@ const statusConfig = {
     tone: 'danger',
     defaultMessage: 'تحقق من اتصال الإنترنت وحاول مرة أخرى',
   },
+  'native-required': {
+    icon: Info,
+    title: 'يلزم إصدار تطبيق جديد',
+    tone: 'danger',
+    defaultMessage: 'هذا التحديث غير متوافق مع النسخة المثبتة',
+  },
   web: {
     icon: Info,
     title: 'التحديث الهوائي للهاتف',
@@ -95,6 +101,23 @@ export default function OtaStatusCard({ status, onRefresh, refreshing, compact =
               <div className="h-2 overflow-hidden rounded-full bg-black/10">
                 <div className="h-full rounded-full bg-brand-500 transition-all duration-300" style={{ width: `${progress}%` }} />
               </div>
+            </div>
+          )}
+          {(status?.nativeVersion || status?.bundleVersion || status?.requiredNativeVersion) && (
+            <div className="grid grid-cols-2 gap-2 pt-3 text-[11px]">
+              <div className="rounded-xl bg-white/60 px-3 py-2">
+                <span className="block opacity-60">إصدار التطبيق</span>
+                <strong>{status.nativeVersion || '—'}</strong>
+              </div>
+              <div className="rounded-xl bg-white/60 px-3 py-2">
+                <span className="block opacity-60">إصدار الواجهة OTA</span>
+                <strong>{status.bundleVersion || '—'}</strong>
+              </div>
+              {status.requiredNativeVersion && status.requiredNativeVersion !== status.nativeVersion && (
+                <div className="col-span-2 rounded-xl bg-alert-100/70 px-3 py-2 font-semibold text-alert-800">
+                  هذه الحزمة تحتاج إصدار التطبيق {status.requiredNativeVersion}
+                </div>
+              )}
             </div>
           )}
           <div className="flex items-center justify-between gap-3 pt-3">

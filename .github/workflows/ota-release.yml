@@ -39,15 +39,20 @@ jobs:
         env:
           REPOSITORY: ${{ github.repository }}
           COMMIT_SHA: ${{ github.sha }}
+          NATIVE_APP_VERSION: '1.1.0'
         run: |
           mkdir -p ota-output
           (cd dist && zip -qr ../ota-output/ota-bundle.zip .)
           BUNDLE_ID="web-${COMMIT_SHA}"
+          BUNDLE_VERSION="ota-${COMMIT_SHA:0:7}"
           BUNDLE_URL="https://github.com/${REPOSITORY}/releases/download/ota-latest/ota-bundle.zip"
           cat > ota-output/ota-manifest.json <<EOF
           {
             "bundleId": "${BUNDLE_ID}",
-            "version": "${COMMIT_SHA}",
+            "version": "${BUNDLE_VERSION}",
+            "bundleVersion": "${BUNDLE_VERSION}",
+            "nativeVersion": "${NATIVE_APP_VERSION}",
+            "releaseType": "ota",
             "bundleUrl": "${BUNDLE_URL}",
             "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           }
