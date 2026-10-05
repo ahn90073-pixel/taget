@@ -3,6 +3,12 @@ name: Publish OTA Web Bundle
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'android/**'
+      - 'ios/**'
+      - 'capacitor.config.json'
+      - '.github/workflows/android-build.yml'
+      - '.github/workflows/ios-build.yml'
   workflow_dispatch:
 
 permissions:

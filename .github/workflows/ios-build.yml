@@ -3,6 +3,12 @@ name: iOS IPA and Archive
 on:
   push:
     branches: [main]
+    paths:
+      - 'ios/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ios-build.yml'
   workflow_dispatch:
 
 permissions:

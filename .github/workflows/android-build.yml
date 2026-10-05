@@ -3,6 +3,12 @@ name: Android APK and AAB
 on:
   push:
     branches: [main]
+    paths:
+      - 'android/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/android-build.yml'
   workflow_dispatch:
 
 permissions:

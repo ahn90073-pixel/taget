@@ -38,7 +38,7 @@ src/utils/liveUpdates.js
 .github/workflows/ota-release.yml
 ```
 
-يعمل عند كل Push إلى `main`، ويبني `dist` ثم ينشر:
+يَعمل عند كل Push إلى `main`، ويبني `dist` ثم ينشر:
 
 ```text
 ota-bundle.zip
@@ -46,6 +46,17 @@ ota-manifest.json
 ```
 
 داخل Release باسم `ota-latest`.
+
+## سياسة الإصدار الواحد
+
+تم ضبط Actions لتفصل بين نوعي التغييرات:
+
+- تعديلات `src/` وملفات الواجهة: تُنشر OTA فقط، ولا تُنشئ APK/AAB أو IPA جديدًا.
+- تعديلات Kotlin/Swift أو إعدادات Capacitor: تُشغّل بناء Android/iOS جديدًا لأنها تحتاج كودًا أصليًا جديدًا.
+
+لذلك تظل نسخة التطبيق المثبتة كما هي، مثلًا `1.0.0`، بينما يتغير `bundleId` الداخلي للواجهة مع كل إصدار OTA. لا تغيّر `versionCode` أو `CFBundleShortVersionString` عند تعديل الواجهة فقط.
+
+يشترط أن يكون التطبيق الأصلي قد بُني بعد دمج Live Update؛ النسخ القديمة التي لا تحتوي Plugin التحديث لن تستطيع تطبيق حزمة OTA.
 
 ## شرط مهم للمستودع الخاص
 
