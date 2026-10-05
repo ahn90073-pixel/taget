@@ -1,44 +1,40 @@
-import type { VendorData, Voucher } from '@/types';
 import { formatEGP } from './format';
-
-function payoutLabel(method: string): string {
-  if (method === 'vodafone_cash') return 'فودافون كاش';
-  if (method === 'instapay') return 'InstaPay';
-  if (method === 'bank') return 'حساب بنكي';
-  return '—';
+function payoutLabel(method) {
+    if (method === 'vodafone_cash')
+        return 'فودافون كاش';
+    if (method === 'instapay')
+        return 'InstaPay';
+    if (method === 'bank')
+        return 'حساب بنكي';
+    return '—';
 }
-
-export function generateVoucherPDF(vendor: VendorData, voucher: Voucher) {
-  const html = buildVoucherHTML(vendor, voucher);
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = 'none';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow?.document;
-  if (!doc) return;
-
-  doc.open();
-  doc.write(html);
-  doc.close();
-
-  iframe.onload = () => {
-    setTimeout(() => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      setTimeout(() => document.body.removeChild(iframe), 1000);
-    }, 300);
-  };
+export function generateVoucherPDF(vendor, voucher) {
+    const html = buildVoucherHTML(vendor, voucher);
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    if (!doc)
+        return;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    iframe.onload = () => {
+        setTimeout(() => {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+            setTimeout(() => document.body.removeChild(iframe), 1000);
+        }, 300);
+    };
 }
-
-function buildVoucherHTML(vendor: VendorData, voucher: Voucher): string {
-  const verifyCode = voucher.receiptNumber.replace(/[^0-9]/g, '').slice(-8);
-
-  return `<!DOCTYPE html>
+function buildVoucherHTML(vendor, voucher) {
+    const verifyCode = voucher.receiptNumber.replace(/[^0-9]/g, '').slice(-8);
+    return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8" />
