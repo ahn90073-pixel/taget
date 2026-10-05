@@ -2,7 +2,15 @@ import Foundation
 import Capacitor
 
 @objc(NativeStoragePlugin)
-public class NativeStoragePlugin: CAPPlugin {
+public class NativeStoragePlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "NativeStoragePlugin"
+    public let jsName = "NativeStorage"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "set", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "get", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "remove", returnType: CAPPluginReturnPromise)
+    ]
+
     private let defaults = UserDefaults.standard
     private let storageSuite = "taget_native_storage"
 
@@ -11,8 +19,8 @@ public class NativeStoragePlugin: CAPPlugin {
     }
 
     @objc func set(_ call: CAPPluginCall) {
-        guard let key = call.getString("key"), !key.isEmpty,
-              let value = call.getString("value") else {
+        guard let key = call.getString("key", nil), !key.isEmpty,
+              let value = call.getString("value", nil) else {
             call.reject("key and value are required")
             return
         }
@@ -22,7 +30,7 @@ public class NativeStoragePlugin: CAPPlugin {
     }
 
     @objc func get(_ call: CAPPluginCall) {
-        guard let key = call.getString("key"), !key.isEmpty else {
+        guard let key = call.getString("key", nil), !key.isEmpty else {
             call.reject("key is required")
             return
         }
@@ -31,7 +39,7 @@ public class NativeStoragePlugin: CAPPlugin {
     }
 
     @objc func remove(_ call: CAPPluginCall) {
-        guard let key = call.getString("key"), !key.isEmpty else {
+        guard let key = call.getString("key", nil), !key.isEmpty else {
             call.reject("key is required")
             return
         }
