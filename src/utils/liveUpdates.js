@@ -6,14 +6,20 @@ const DEFAULT_MANIFEST_URL =
 const manifestUrl = import.meta.env.VITE_OTA_MANIFEST_URL || DEFAULT_MANIFEST_URL;
 
 /**
- * Marks the current bundle as healthy and downloads a newer signed bundle when
- * GitHub publishes one. The native plugin rolls back automatically if the new
- * bundle fails before ready() is called.
+ * Checks GitHub for a new web bundle and reports progress to the UI.
+ * Native plugin rolls back automatically if the new bundle fails before ready().
  */
-export async function checkForOtaUpdate() {
-  if (!Capacitor.isNativePlatform()) return { available: false, reason: 'web' };
+export async function checkForOtaUpdate({ onStatus } = {}) {
+  const report = (status, details = {}) => onStatus?.({ status, ...details });
 
+  if (!Capacitor.isNativePlatform()) {
+    report('web', { message: 'التحديث الهوائي يعمل داخل نسخة الهاتف' });
+    return { available: false, reason: 'web' };
+  }
+
+  report('checking', { message: 'جاري البحث عن تحديث جديد...' });
   await LiveUpdate.ready();
+
   const response = await fetch(`${manifestUrl}?t=${Date.now()}`, {
     cache: 'no-store',
     headers: { Accept: 'application/json' },
@@ -27,14 +33,37 @@ export async function checkForOtaUpdate() {
 
   const current = await LiveUpdate.getCurrentBundle();
   if (current.bundleId === manifest.bundleId) {
+    report('current', {
+      message: 'أنت تستخدم أحدث إصدار من الواجهة',
+      bundleId: manifest.bundleId,
+      updatedAt: manifest.createdAt,
+    });
     return { available: false, bundleId: manifest.bundleId };
   }
 
-  await LiveUpdate.downloadBundle({
-    url: manifest.bundleUrl,
-    bundleId: manifest.bundleId,
-  });
-  await LiveUpdate.setNextBundle({ bundleId: manifest.bundleId });
-  await LiveUpdate.reload();
-  return { available: true, bundleId: manifest.bundleId };
+  report('downloading', { message: 'تم العثور على تحديث، جاري التحميل...', progress: 0 });
+  let progressHandle;
+  try {
+    progressHandle = await LiveUpdate.addListener('downloadBundleProgress', (event) => {
+      report('downloading', {
+        message: 'جاري تحميل التحديث الهوائي...',
+        progress: Math.round((event.progress || 0) * 100),
+      });
+    });
+
+    await LiveUpdate.downloadBundle({
+      url: manifest.bundleUrl,
+      bundleId: manifest.bundleId,
+    });
+    await LiveUpdate.setNextBundle({ bundleId: manifest.bundleId });
+    report('updated', {
+      message: 'اكتمل التحديث، سيتم تشغيل الواجهة الجديدة الآن',
+      progress: 100,
+      bundleId: manifest.bundleId,
+    });
+    await LiveUpdate.reload();
+    return { available: true, bundleId: manifest.bundleId };
+  } finally {
+    await progressHandle?.remove?.();
+  }
 }
