@@ -1,5 +1,12 @@
 {
   "appId": "com.taget.app",
-  "appName": "Taget",
-  "webDir": "dist"
+  "appName": "تاجر",
+  "webDir": "dist",
+  "plugins": {
+    "LiveUpdate": {
+      "autoBlockRolledBackBundles": true,
+      "autoDeleteBundles": true,
+      "readyTimeout": 10000
+    }
+  }
 }

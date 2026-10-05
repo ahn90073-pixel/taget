@@ -2,6 +2,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { initialFinancialData, mockVouchers } from '@/data/mockData';
 import { recordAppLaunch } from '@/plugins/nativeStorage';
+import { checkForOtaUpdate } from '@/utils/liveUpdates';
 import RegisterScreen from '@/screens/RegisterScreen';
 import CompleteProfileScreen from '@/screens/CompleteProfileScreen';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -14,6 +15,9 @@ function App() {
         // Uses Kotlin/Swift on native builds and localStorage on the web.
         recordAppLaunch().catch(() => {
             // Native capabilities are optional; the existing dashboard remains usable.
+        });
+        checkForOtaUpdate().catch(() => {
+            // OTA is best-effort; a failed network/update check must not block the app.
         });
     }, []);
     const [screen, setScreen] = useState('REGISTER');

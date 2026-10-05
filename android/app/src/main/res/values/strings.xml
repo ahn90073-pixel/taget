@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Taget</string>
-    <string name="title_activity_main">Taget</string>
+    <string name="app_name">تاجر</string>
+    <string name="title_activity_main">تاجر</string>
     <string name="package_name">com.taget.app</string>
     <string name="custom_url_scheme">com.taget.app</string>
 </resources>

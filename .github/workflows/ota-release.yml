@@ -1,0 +1,71 @@
+name: Publish OTA Web Bundle
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-ota:
+    name: Publish web bundle for OTA
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web bundle
+        run: npm run build
+
+      - name: Create OTA bundle and manifest
+        env:
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p ota-output
+          (cd dist && zip -qr ../ota-output/ota-bundle.zip .)
+          BUNDLE_ID="web-${COMMIT_SHA}"
+          BUNDLE_URL="https://github.com/${REPOSITORY}/releases/download/ota-latest/ota-bundle.zip"
+          cat > ota-output/ota-manifest.json <<EOF
+          {
+            "bundleId": "${BUNDLE_ID}",
+            "version": "${COMMIT_SHA}",
+            "bundleUrl": "${BUNDLE_URL}",
+            "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
+      - name: Create or update OTA release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view ota-latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create ota-latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --title 'تاجر OTA Latest' \
+              --notes 'Managed automatically by the OTA workflow. Do not delete this release.' \
+              --prerelease \
+              --target "$GITHUB_SHA"
+          fi
+          gh release upload ota-latest \
+            ota-output/ota-bundle.zip \
+            ota-output/ota-manifest.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Summary
+        run: |
+          echo 'OTA bundle published to GitHub Releases.' >> "$GITHUB_STEP_SUMMARY"
+          echo "Manifest: https://github.com/$GITHUB_REPOSITORY/releases/download/ota-latest/ota-manifest.json" >> "$GITHUB_STEP_SUMMARY"
