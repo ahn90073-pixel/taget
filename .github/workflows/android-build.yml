@@ -47,6 +47,7 @@ jobs:
         run: chmod +x android/gradlew
 
       - name: Configure release signing
+        id: signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -61,19 +62,34 @@ jobs:
           keyAlias=$ANDROID_KEY_ALIAS
           keyPassword=$ANDROID_KEY_PASSWORD
           EOF
+            echo "configured=true" >> "$GITHUB_OUTPUT"
             echo 'Android release signing is configured.'
           else
-            echo 'Android signing secrets are not configured; building unsigned release artifacts.'
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo 'Android signing secrets are not configured; only the installable Debug APK will be produced.'
           fi
 
-      - name: Build release APK and AAB
+      - name: Build installable Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Build signed Release APK and AAB
+        if: steps.signing.outputs.configured == 'true'
         working-directory: android
         run: ./gradlew assembleRelease bundleRelease --no-daemon
 
-      - name: Upload APK and AAB
+      - name: Upload installable Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: taget-android-${{ github.sha }}
+          name: taget-debug-apk-${{ github.sha }}
+          if-no-files-found: error
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload signed Release APK and AAB
+        if: steps.signing.outputs.configured == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: taget-release-apk-aab-${{ github.sha }}
           if-no-files-found: error
           path: |
             android/app/build/outputs/apk/release/*.apk
@@ -81,9 +97,10 @@ jobs:
 
       - name: Build summary
         run: |
-          if [ -f android/keystore.properties ]; then
-            echo 'Release artifacts were signed with the configured Android keystore.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Installable Debug APK: download taget-debug-apk from this workflow run.' >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.signing.outputs.configured }}" = "true" ]; then
+            echo 'Signed Release APK and AAB were generated.' >> "$GITHUB_STEP_SUMMARY"
           else
-            echo 'Release artifacts were built without a keystore. Add the four ANDROID_* secrets for signed artifacts.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Release APK/AAB were skipped because Android signing Secrets are missing.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Add ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD to enable them.' >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo 'Artifacts are available in the workflow run under Artifacts.' >> "$GITHUB_STEP_SUMMARY"

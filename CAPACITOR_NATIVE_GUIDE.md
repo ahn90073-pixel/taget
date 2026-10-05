@@ -32,6 +32,6 @@ base64 -w 0 android/taget-release.keystore > keystore.base64.txt
 
 انسخ محتوى `keystore.base64.txt` إلى Secret باسم `ANDROID_KEYSTORE_BASE64`، ثم احذف الملف النصي من جهازك إذا لم تعد تحتاجه.
 
-إذا لم تتم إضافة Secrets، سيظل الـ Workflow يبني ملفات Release، لكنها ستكون غير موقعة أو غير صالحة للنشر بحسب إعدادات Android Gradle Plugin. بعد إضافة Secrets سيُنشئ Workflow نسخة Release موقعة تلقائيًا.
+إذا لم تتم إضافة Secrets، يبني الـWorkflow **Debug APK موقّعًا تلقائيًا وقابلًا للتثبيت**، ويتخطى Release APK/AAB. بعد إضافة Secrets سيبني Workflow نسخة Release APK وAAB موقعة تلقائيًا. لا تحاول تثبيت ملف باسم `app-release-unsigned.apk`؛ فهذا ملف غير موقّع وسيظهر على الهاتف كحزمة غير صالحة.
 
 لا ترفع Keystore أو ملف Base64 إلى المستودع. الـ Workflow ينشئ الملفات مؤقتًا داخل Runner ويتم تنظيفها عند انتهاء المهمة.
