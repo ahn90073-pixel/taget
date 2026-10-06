@@ -4,7 +4,7 @@ import { LiveUpdate } from '@capawesome/capacitor-live-update';
 const DEFAULT_MANIFEST_URL =
   'https://github.com/zazotona301-oss/taget/releases/download/ota-latest/ota-manifest.json';
 const manifestUrl = import.meta.env.VITE_OTA_MANIFEST_URL || DEFAULT_MANIFEST_URL;
-const nativeAppVersion = import.meta.env.VITE_NATIVE_APP_VERSION || '1.1.0';
+const nativeAppVersion = import.meta.env.VITE_NATIVE_APP_VERSION || '1.1.1';
 
 /** Checks GitHub for a compatible web bundle and reports progress to the UI. */
 export async function checkForOtaUpdate({ onStatus } = {}) {
