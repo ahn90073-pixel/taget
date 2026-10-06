@@ -1,10 +1,31 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { LiveUpdate } from '@capawesome/capacitor-live-update';
 
 const DEFAULT_MANIFEST_URL =
-  'https://github.com/zazotona301-oss/taget/releases/download/ota-latest/ota-manifest.json';
+  'https://github.com/ahn90073-pixel/taget/releases/download/ota-latest/ota-manifest.json';
 const manifestUrl = import.meta.env.VITE_OTA_MANIFEST_URL || DEFAULT_MANIFEST_URL;
-const nativeAppVersion = import.meta.env.VITE_NATIVE_APP_VERSION || '1.1.1';
+const nativeAppVersion = import.meta.env.VITE_NATIVE_APP_VERSION || '1.1.2';
+
+async function fetchManifest() {
+  const url = `${manifestUrl}?t=${Date.now()}`;
+  if (Capacitor.isNativePlatform()) {
+    const response = await CapacitorHttp.get({
+      url,
+      headers: { Accept: 'application/json' },
+    });
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`OTA manifest request failed: ${response.status}`);
+    }
+    return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+  }
+
+  const response = await fetch(url, {
+    cache: 'no-store',
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) throw new Error(`OTA manifest request failed: ${response.status}`);
+  return response.json();
+}
 
 /** Checks GitHub for a compatible web bundle and reports progress to the UI. */
 export async function checkForOtaUpdate({ onStatus } = {}) {
@@ -24,13 +45,7 @@ export async function checkForOtaUpdate({ onStatus } = {}) {
   });
   await LiveUpdate.ready();
 
-  const response = await fetch(`${manifestUrl}?t=${Date.now()}`, {
-    cache: 'no-store',
-    headers: { Accept: 'application/json' },
-  });
-  if (!response.ok) throw new Error(`OTA manifest request failed: ${response.status}`);
-
-  const manifest = await response.json();
+  const manifest = await fetchManifest();
   if (!manifest.bundleId || !manifest.bundleUrl) {
     throw new Error('OTA manifest is missing bundleId or bundleUrl');
   }
