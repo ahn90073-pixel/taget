@@ -61,7 +61,7 @@ const iconClasses = {
 };
 
 export default function OtaStatusCard({ status, onRefresh, refreshing, compact = false }) {
-  const [collapsed, setCollapsed] = useState(compact);
+  const [collapsed, setCollapsed] = useState(false);
   const config = statusConfig[status?.status] || statusConfig.checking;
   const Icon = config.icon;
   const progress = Math.max(0, Math.min(100, status?.progress || 0));
@@ -129,7 +129,7 @@ export default function OtaStatusCard({ status, onRefresh, refreshing, compact =
               className="inline-flex flex-shrink-0 items-center gap-2 rounded-xl bg-white/80 px-3 py-2 text-xs font-bold shadow-sm transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isBusy ? <WifiOff className="h-4 w-4 animate-pulse" /> : <RefreshCw className="h-4 w-4" />}
-              إعادة الفحص
+              تحقق من التحديث الآن
             </button>
           </div>
         </div>
