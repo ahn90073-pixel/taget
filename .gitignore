@@ -13,6 +13,7 @@ dist-ssr
 /.gradle
 android/.gradle
 android/keystore.properties
+android/app/google-services.json
 *.keystore
 *.jks
 ios/App/DerivedData

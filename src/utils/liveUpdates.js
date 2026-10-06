@@ -4,7 +4,7 @@ import { LiveUpdate } from '@capawesome/capacitor-live-update';
 const DEFAULT_MANIFEST_URL =
   'https://github.com/ahn90073-pixel/taget/releases/download/ota-latest/ota-manifest.json';
 const manifestUrl = import.meta.env.VITE_OTA_MANIFEST_URL || DEFAULT_MANIFEST_URL;
-const nativeAppVersion = import.meta.env.VITE_NATIVE_APP_VERSION || '1.1.2';
+const nativeAppVersion = import.meta.env.VITE_NATIVE_APP_VERSION || '1.1.3';
 
 async function fetchManifest() {
   const url = `${manifestUrl}?t=${Date.now()}`;

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { initialFinancialData, mockVouchers } from '@/data/mockData';
 import { recordAppLaunch } from '@/plugins/nativeStorage';
 import { checkForOtaUpdate } from '@/utils/liveUpdates';
+import { initializePushNotifications } from '@/utils/pushNotifications';
 import RegisterScreen from '@/screens/RegisterScreen';
 import CompleteProfileScreen from '@/screens/CompleteProfileScreen';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -34,6 +35,9 @@ function App() {
         // Uses Kotlin/Swift on native builds and localStorage on the web.
         recordAppLaunch().catch(() => {
             // Native capabilities are optional; the existing dashboard remains usable.
+        });
+        initializePushNotifications().catch(() => {
+            // Notifications are optional; the existing app remains usable if permission is denied.
         });
         runOtaCheck();
     }, [runOtaCheck]);

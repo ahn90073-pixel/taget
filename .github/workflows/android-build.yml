@@ -46,6 +46,25 @@ jobs:
       - name: Install web dependencies
         run: npm ci
 
+      - name: Configure Firebase Cloud Messaging
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo 'GOOGLE_SERVICES_JSON_BASE64 is required for Firebase notifications.'
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('android/app/google-services.json').read_text())
+          package_names = [c.get('client_info', {}).get('android_client_info', {}).get('package_name') for c in data.get('client', [])]
+          if 'com.taget.app' not in package_names:
+              raise SystemExit(f'google-services.json does not contain com.taget.app: {package_names}')
+          print('Firebase google-services.json validated for com.taget.app')
+          PY
+
       - name: Build web app and sync Capacitor
         run: npm run cap:sync
 
