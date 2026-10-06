@@ -11,7 +11,6 @@ import DashboardScreen from '@/screens/DashboardScreen';
 import ProductsScreen from '@/screens/ProductsScreen';
 import VouchersScreen from '@/screens/VouchersScreen';
 import OrdersScreen from '@/screens/OrdersScreen';
-import OtaUpdateButton from '@/components/OtaUpdateButton';
 function App() {
     const [otaStatus, setOtaStatus] = useState({ status: 'checking', message: 'جاري تجهيز فحص التحديث الهوائي...' });
     const [otaRefreshing, setOtaRefreshing] = useState(false);
@@ -68,13 +67,13 @@ function App() {
     };
     // Render screens outside the dashboard layout
     if (screen === 'REGISTER') {
-        return (_jsxs("div", { className: "relative min-h-screen", children: [_jsx(RegisterScreen, { onRegisterComplete: handleRegisterComplete }), _jsx(OtaUpdateButton, { status: otaStatus, onRefresh: runOtaCheck, refreshing: otaRefreshing })] }));
+        return (_jsx("div", { className: "min-h-screen", children: _jsx(RegisterScreen, { onRegisterComplete: handleRegisterComplete }) }));
     }
     if (screen === 'COMPLETE_PROFILE') {
-        return (_jsxs("div", { className: "relative min-h-screen", children: [_jsx(CompleteProfileScreen, { vendorData: vendor, onComplete: handleProfileComplete }), _jsx(OtaUpdateButton, { status: otaStatus, onRefresh: runOtaCheck, refreshing: otaRefreshing })] }));
+        return (_jsx("div", { className: "min-h-screen", children: _jsx(CompleteProfileScreen, { vendorData: vendor, onComplete: handleProfileComplete }) }));
     }
     // Dashboard screens with layout
     const fullVendor = vendor;
-    return (_jsxs(DashboardLayout, { currentScreen: screen, onNavigate: setScreen, vendor: fullVendor, children: [_jsx(OtaUpdateButton, { status: otaStatus, onRefresh: runOtaCheck, refreshing: otaRefreshing }), screen === 'DASHBOARD' && (_jsx(DashboardScreen, { vendor: fullVendor, financialData: financialData, onPaymentReceived: handlePaymentReceived, vouchers: vouchers })), screen === 'PRODUCTS' && _jsx(ProductsScreen, { vendor: fullVendor }), screen === 'VOUCHERS' && _jsx(VouchersScreen, { vendor: fullVendor, vouchers: vouchers, financialData: financialData }), screen === 'ORDERS' && _jsx(OrdersScreen, { vendor: fullVendor })] }));
+    return (_jsxs(DashboardLayout, { currentScreen: screen, onNavigate: setScreen, vendor: fullVendor, otaStatus: otaStatus, onOtaRefresh: runOtaCheck, otaRefreshing: otaRefreshing, children: [screen === 'DASHBOARD' && (_jsx(DashboardScreen, { vendor: fullVendor, financialData: financialData, onPaymentReceived: handlePaymentReceived, vouchers: vouchers })), screen === 'PRODUCTS' && _jsx(ProductsScreen, { vendor: fullVendor }), screen === 'VOUCHERS' && _jsx(VouchersScreen, { vendor: fullVendor, vouchers: vouchers, financialData: financialData }), screen === 'ORDERS' && _jsx(OrdersScreen, { vendor: fullVendor })] }));
 }
 export default App;

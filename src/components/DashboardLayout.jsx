@@ -1,23 +1,110 @@
-import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Package, Receipt, Truck, Store, Menu, X, LogOut, ShieldCheck, ChevronLeft, Bell } from 'lucide-react';
+import { LayoutDashboard, Package, Receipt, Truck, Store, Menu, X, LogOut, ShieldCheck, ChevronLeft, Bell, RefreshCw } from 'lucide-react';
+
 const navItems = [
-    { screen: 'DASHBOARD', label: 'لوحة التحكم', icon: _jsx(LayoutDashboard, { className: "w-5 h-5" }) },
-    { screen: 'PRODUCTS', label: 'إدارة المنتجات', icon: _jsx(Package, { className: "w-5 h-5" }) },
-    { screen: 'ORDERS', label: 'طلبات الشحن', icon: _jsx(Truck, { className: "w-5 h-5" }) },
-    { screen: 'VOUCHERS', label: 'سجل المحفظة والإيصالات', icon: _jsx(Receipt, { className: "w-5 h-5" }) },
+  { screen: 'DASHBOARD', label: 'لوحة التحكم', icon: LayoutDashboard },
+  { screen: 'PRODUCTS', label: 'إدارة المنتجات', icon: Package },
+  { screen: 'ORDERS', label: 'طلبات الشحن', icon: Truck },
+  { screen: 'VOUCHERS', label: 'سجل المحفظة والإيصالات', icon: Receipt },
 ];
-export default function DashboardLayout({ currentScreen, onNavigate, vendor, children }) {
-    const [mobileOpen, setMobileOpen] = useState(false);
-    const currentLabel = navItems.find(n => n.screen === currentScreen)?.label || 'لوحة التحكم';
-    const sidebar = (_jsxs("div", { className: "flex flex-col h-full", children: [_jsxs("div", { className: "flex items-center gap-3 px-6 py-6 border-b border-slate-700/50", children: [_jsx("div", { className: "w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center flex-shrink-0", children: _jsx(Store, { className: "w-6 h-6 text-white" }) }), _jsxs("div", { className: "min-w-0", children: [_jsx("h1", { className: "text-white font-bold font-display text-sm truncate", children: "\u0645\u0646\u0635\u0629 \u0627\u0644\u0633\u0648\u0642 \u0627\u0644\u0645\u0635\u0631\u064A" }), _jsx("p", { className: "text-slate-400 text-xs truncate", children: vendor.storeName })] })] }), _jsx("div", { className: "px-4 pt-4", children: _jsxs("div", { className: `rounded-xl p-3 flex items-center gap-3 ${vendor.status === 'verified'
-                        ? 'bg-financial-900/40 border border-financial-700/50'
-                        : 'bg-alert-900/40 border border-alert-700/50'}`, children: [_jsx("div", { className: `w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${vendor.status === 'verified' ? 'bg-financial-500/20 text-financial-400' : 'bg-alert-500/20 text-alert-400'}`, children: _jsx(ShieldCheck, { className: "w-5 h-5" }) }), _jsxs("div", { className: "min-w-0", children: [_jsx("p", { className: "text-white text-xs font-semibold", children: vendor.status === 'verified' ? 'حساب موثق' : 'قيد المراجعة' }), _jsx("p", { className: "text-slate-400 text-xs truncate", children: vendor.vendorName })] })] }) }), _jsx("nav", { className: "flex-1 px-4 py-6 space-y-1 overflow-y-auto scrollbar-thin", children: navItems.map(item => (_jsxs("button", { onClick: () => {
-                        onNavigate(item.screen);
-                        setMobileOpen(false);
-                    }, className: `w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-right group ${currentScreen === item.screen
-                        ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/30'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800'}`, children: [_jsx("span", { className: `transition-transform ${currentScreen === item.screen ? 'scale-110' : 'group-hover:scale-110'}`, children: item.icon }), _jsx("span", { className: "font-semibold text-sm flex-1 text-right", children: item.label }), currentScreen === item.screen && _jsx(ChevronLeft, { className: "w-4 h-4" })] }, item.screen))) }), _jsx("div", { className: "px-4 py-4 border-t border-slate-700/50", children: _jsxs("button", { className: "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:text-alert-400 hover:bg-alert-900/20 transition-all text-right", children: [_jsx(LogOut, { className: "w-5 h-5" }), _jsx("span", { className: "font-semibold text-sm", children: "\u062A\u0633\u062C\u064A\u0644 \u0627\u0644\u062E\u0631\u0648\u062C" })] }) })] }));
-    return (_jsxs("div", { className: "min-h-screen bg-slate-50 flex", dir: "rtl", children: [_jsx("aside", { className: "hidden lg:flex w-64 bg-slate-900 flex-shrink-0 fixed inset-y-0 right-0 z-30", children: sidebar }), _jsx(AnimatePresence, { children: mobileOpen && (_jsxs(_Fragment, { children: [_jsx(motion.div, { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, onClick: () => setMobileOpen(false), className: "fixed inset-0 bg-black/50 z-40 lg:hidden" }), _jsxs(motion.aside, { initial: { x: '100%' }, animate: { x: 0 }, exit: { x: '100%' }, transition: { type: 'tween', duration: 0.3 }, className: "fixed inset-y-0 right-0 w-72 bg-slate-900 z-50 lg:hidden", children: [_jsx("button", { onClick: () => setMobileOpen(false), className: "absolute top-4 left-4 text-slate-400 hover:text-white z-10", children: _jsx(X, { className: "w-6 h-6" }) }), sidebar] })] })) }), _jsxs("div", { className: "flex-1 lg:mr-64 min-w-0", children: [_jsxs("header", { className: "sticky top-0 z-20 bg-white border-b border-slate-100 px-4 sm:px-6 py-4 flex items-center justify-between glass", children: [_jsxs("div", { className: "flex items-center gap-3", children: [_jsx("button", { onClick: () => setMobileOpen(true), className: "lg:hidden w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600", children: _jsx(Menu, { className: "w-5 h-5" }) }), _jsxs("div", { children: [_jsx("h2", { className: "text-lg font-bold text-slate-900 font-display", children: currentLabel }), _jsx("p", { className: "text-slate-400 text-xs hidden sm:block", children: new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) })] })] }), _jsxs("div", { className: "flex items-center gap-3", children: [_jsxs("button", { className: "relative w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors", children: [_jsx(Bell, { className: "w-5 h-5" }), _jsx("span", { className: "absolute top-2 left-2 w-2 h-2 rounded-full bg-alert-500" })] }), _jsxs("div", { className: "flex items-center gap-2 pr-2", children: [_jsx("div", { className: "w-9 h-9 rounded-full bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white font-bold text-sm", children: vendor.vendorName.charAt(0) }), _jsxs("div", { className: "hidden sm:block", children: [_jsx("p", { className: "text-sm font-semibold text-slate-800", children: vendor.vendorName }), _jsx("p", { className: "text-xs text-slate-400", children: vendor.email })] })] })] })] }), _jsx("main", { className: "p-4 sm:p-6 lg:p-8", children: children })] })] }));
+
+export default function DashboardLayout({ currentScreen, onNavigate, vendor, children, otaStatus, onOtaRefresh, otaRefreshing }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const currentLabel = navItems.find((item) => item.screen === currentScreen)?.label || 'لوحة التحكم';
+  const otaState = otaStatus?.status || 'checking';
+  const otaLabel = otaState === 'current' || otaState === 'updated'
+    ? 'التطبيق محدّث'
+    : otaState === 'error' ? 'تعذّر فحص التحديث' : 'فحص التحديث الهوائي';
+  const otaColor = otaState === 'error'
+    ? 'text-alert-400'
+    : otaState === 'current' || otaState === 'updated' ? 'text-financial-400' : 'text-brand-400';
+
+  const sidebar = (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-3 border-b border-slate-700/50 px-6 py-6">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-500">
+          <Store className="h-6 w-6 text-white" />
+        </div>
+        <div className="min-w-0">
+          <h1 className="truncate font-display text-sm font-bold text-white">منصة السوق المصري</h1>
+          <p className="truncate text-xs text-slate-400">{vendor.storeName}</p>
+        </div>
+      </div>
+
+      <div className="px-4 pt-4">
+        <div className={`flex items-center gap-3 rounded-xl border p-3 ${vendor.status === 'verified' ? 'border-financial-700/50 bg-financial-900/40' : 'border-alert-700/50 bg-alert-900/40'}`}>
+          <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${vendor.status === 'verified' ? 'bg-financial-500/20 text-financial-400' : 'bg-alert-500/20 text-alert-400'}`}>
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-white">{vendor.status === 'verified' ? 'حساب موثق' : 'قيد المراجعة'}</p>
+            <p className="truncate text-xs text-slate-400">{vendor.vendorName}</p>
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6 scrollbar-thin">
+        {navItems.map(({ screen, label, icon: Icon }) => (
+          <button key={screen} onClick={() => { onNavigate(screen); setMobileOpen(false); }} className={`group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right transition-all ${currentScreen === screen ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+            <span className={`transition-transform ${currentScreen === screen ? 'scale-110' : 'group-hover:scale-110'}`}><Icon className="h-5 w-5" /></span>
+            <span className="flex-1 text-right text-sm font-semibold">{label}</span>
+            {currentScreen === screen && <ChevronLeft className="h-4 w-4" />}
+          </button>
+        ))}
+
+        <button type="button" onClick={onOtaRefresh} disabled={otaRefreshing || otaState === 'downloading'} title={otaStatus?.message || 'تحقق من وجود تحديثات'} className={`mt-3 flex w-full items-center gap-3 rounded-xl border border-slate-700/70 px-4 py-3 text-right transition-all hover:bg-slate-800 disabled:cursor-wait disabled:opacity-70 ${otaColor}`}>
+          <RefreshCw className={`h-5 w-5 flex-shrink-0 ${otaRefreshing || otaState === 'downloading' ? 'animate-spin' : ''}`} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">{otaLabel}</span>
+            <span className="block truncate text-[10px] text-slate-500">{otaStatus?.message || 'اضغط للفحص الآن'}</span>
+          </span>
+        </button>
+      </nav>
+
+      <div className="border-t border-slate-700/50 px-4 py-4">
+        <button className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-slate-400 transition-all hover:bg-alert-900/20 hover:text-alert-400">
+          <LogOut className="h-5 w-5" />
+          <span className="text-sm font-semibold">تسجيل الخروج</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50" dir="rtl">
+      <aside className="fixed inset-y-0 right-0 z-30 hidden w-64 bg-slate-900 lg:flex">{sidebar}</aside>
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobileOpen(false)} className="fixed inset-0 z-40 bg-black/50 lg:hidden" />
+            <motion.aside initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'tween', duration: 0.3 }} className="fixed inset-y-0 right-0 z-50 w-72 bg-slate-900 lg:hidden">
+              <button onClick={() => setMobileOpen(false)} className="absolute left-4 top-4 z-10 text-slate-400 hover:text-white"><X className="h-6 w-6" /></button>
+              {sidebar}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      <div className="min-w-0 lg:mr-64">
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white px-4 py-4 glass sm:px-6">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setMobileOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 lg:hidden"><Menu className="h-5 w-5" /></button>
+            <div>
+              <h2 className="font-display text-lg font-bold text-slate-900">{currentLabel}</h2>
+              <p className="hidden text-xs text-slate-400 sm:block">{new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200"><Bell className="h-5 w-5" /><span className="absolute left-2 top-2 h-2 w-2 rounded-full bg-alert-500" /></button>
+            <div className="flex items-center gap-2 pr-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white">{vendor.vendorName.charAt(0)}</div>
+              <div className="hidden sm:block"><p className="text-sm font-semibold text-slate-800">{vendor.vendorName}</p><p className="text-xs text-slate-400">{vendor.email}</p></div>
+            </div>
+          </div>
+        </header>
+        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+      </div>
+    </div>
+  );
 }
