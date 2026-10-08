@@ -1,13 +1,25 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Package, Edit2, Trash2, X, AlertCircle, CheckCircle2, FileText, Filter, ImagePlus, Upload, Image as ImageIcon } from 'lucide-react';
 import { formatEGP, formatNumber } from '@/utils/format';
-import { mockProducts, productCategories } from '@/data/mockData';
+import { productCategories } from '@/data/mockData';
+import { mapBackendProduct, productsApi } from '@/api/client';
 
 const emptyProduct = { name: '', category: productCategories[0], price: '', stock: '', weight: '', image: '' };
 
-export default function ProductsScreen({ vendor }) {
-  const [products, setProducts] = useState(mockProducts);
+export default function ProductsScreen({ vendor, token }) {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState('');
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    let active = true;
+    productsApi.list(vendor.apiCompanyId).then((result) => {
+      if (active) setProducts((result.items || []).map(mapBackendProduct));
+    }).catch((error) => { if (active) setApiError(error.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [vendor.apiCompanyId, token]);
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -50,28 +62,36 @@ export default function ProductsScreen({ vendor }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleAddProduct = () => {
-    if (!newProduct.name || !newProduct.price) return;
-    const product = {
-      id: String(Date.now()),
-      name: newProduct.name,
-      category: newProduct.category,
-      price: Number(newProduct.price),
-      stock: Number(newProduct.stock) || 0,
-      weight: Number(newProduct.weight) || 0,
-      image: newProduct.image || '',
-      status: 'active',
-    };
-    setProducts([product, ...products]);
-    closeModal();
+  const handleAddProduct = async () => {
+    if (!newProduct.name || !newProduct.price || saving) return;
+    setSaving(true); setApiError('');
+    try {
+      const created = await productsApi.create(vendor.apiCompanyId, {
+        sku: `SKU-${Date.now()}`, name: newProduct.name.trim(), price: Number(newProduct.price),
+        currency: 'EGP', weightGrams: Math.round((Number(newProduct.weight) || 0) * 1000),
+        metadata: { categoryLabel: newProduct.category, image: newProduct.image || '' },
+      });
+      setProducts((current) => [mapBackendProduct(created), ...current]);
+      closeModal();
+    } catch (error) { setApiError(error.message); }
+    finally { setSaving(false); }
   };
 
-  const handleDelete = (id) => setProducts(products.filter((product) => product.id !== id));
-  const isVerified = vendor.status === 'verified';
+  const handleDelete = async (id) => {
+    if (!window.confirm('هل تريد حذف هذا المنتج نهائيًا؟')) return;
+    setApiError('');
+    try {
+      await productsApi.remove(vendor.apiCompanyId, id);
+      setProducts((current) => current.filter((product) => product.id !== id));
+    } catch (error) { setApiError(error.message); }
+  };
+  const canManageProducts = Boolean(vendor.apiCompanyId);
 
   return (
     <div className="space-y-6">
-      {!isVerified && (
+      {apiError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{apiError}</div>}
+      {loading && <div className="rounded-xl border border-brand-100 bg-brand-50 p-3 text-sm text-brand-700">جارٍ تحميل المنتجات من الخادم...</div>}
+      {!canManageProducts && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3 rounded-2xl border-2 border-alert-200 bg-alert-50 p-4">
           <AlertCircle className="h-6 w-6 flex-shrink-0 text-alert-600" />
           <p className="text-sm font-semibold text-alert-800">حسابك غير مكتمل. لا يمكنك إضافة منتجات جديدة حتى استكمال البيانات الوثائقية الرسمية.</p>
@@ -80,7 +100,7 @@ export default function ProductsScreen({ vendor }) {
 
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div><h2 className="font-display text-xl font-bold text-slate-900">كتالوج المنتجات</h2><p className="mt-1 text-sm text-slate-400">إدارة منتجات متجرك — {products.length} منتج إجمالاً</p></div>
-        <button onClick={() => isVerified && setShowAddModal(true)} disabled={!isVerified} className={`flex items-center gap-2 rounded-xl px-5 py-3 font-bold transition-all ${isVerified ? 'bg-brand-600 text-white shadow-lg shadow-brand-200 hover:bg-brand-700' : 'cursor-not-allowed bg-slate-200 text-slate-400'}`}><Plus className="h-5 w-5" />إضافة منتج جديد</button>
+        <button onClick={() => canManageProducts && setShowAddModal(true)} disabled={!canManageProducts} className={`flex items-center gap-2 rounded-xl px-5 py-3 font-bold transition-all ${canManageProducts ? 'bg-brand-600 text-white shadow-lg shadow-brand-200 hover:bg-brand-700' : 'cursor-not-allowed bg-slate-200 text-slate-400'}`}><Plus className="h-5 w-5" />إضافة منتج جديد</button>
       </div>
 
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:flex-row">
@@ -93,7 +113,7 @@ export default function ProductsScreen({ vendor }) {
           <tbody className="divide-y divide-slate-50">{filtered.map((product, index) => <motion.tr key={product.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.05 }} className="transition-colors hover:bg-slate-50">
             <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-50 text-brand-600">{product.image ? <img src={product.image} alt={product.name} className="h-full w-full object-cover" /> : <Package className="h-5 w-5" />}</div><span className="text-sm font-semibold text-slate-800">{product.name}</span></div></td>
             <td className="px-4 py-4 text-sm text-slate-600">{product.category}</td><td className="px-4 py-4 text-sm font-bold text-slate-800">{formatEGP(product.price)}</td><td className={`px-4 py-4 text-sm font-semibold ${product.stock === 0 ? 'text-red-600' : product.stock < 50 ? 'text-alert-600' : 'text-slate-700'}`}>{formatNumber(product.stock)}</td><td className="hidden px-4 py-4 text-sm text-slate-600 sm:table-cell">{product.weight}</td>
-            <td className="px-4 py-4"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${product.status === 'active' ? 'bg-financial-100 text-financial-700' : 'bg-slate-100 text-slate-500'}`}>{product.status === 'active' ? <CheckCircle2 className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}{product.status === 'active' ? 'نشط' : 'مسودة'}</span></td>
+            <td className="px-4 py-4"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${product.status === 'active' ? 'bg-financial-100 text-financial-700' : product.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{product.status === 'active' ? <CheckCircle2 className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}{product.status === 'active' ? 'نشط' : product.status === 'pending' ? 'قيد المراجعة' : product.status === 'archived' ? 'مؤرشف' : 'مسودة'}</span></td>
             <td className="px-4 py-4"><div className="flex items-center gap-2"><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-brand-100 hover:text-brand-600"><Edit2 className="h-4 w-4" /></button><button onClick={() => handleDelete(product.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-600"><Trash2 className="h-4 w-4" /></button></div></td>
           </motion.tr>)}</tbody></table></div>
         {filtered.length === 0 && <div className="p-12 text-center"><Package className="mx-auto mb-3 h-12 w-12 text-slate-300" /><p className="text-slate-400">لا توجد منتجات مطابقة</p></div>}
@@ -108,7 +128,7 @@ export default function ProductsScreen({ vendor }) {
           <div className="grid grid-cols-2 gap-4"><div><label className="mb-1.5 block text-sm font-semibold text-slate-700">السعر (ج.م)</label><input type="number" value={newProduct.price} onChange={(event) => setNewProduct({ ...newProduct, price: event.target.value })} placeholder="0" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div><div><label className="mb-1.5 block text-sm font-semibold text-slate-700">المخزون</label><input type="number" value={newProduct.stock} onChange={(event) => setNewProduct({ ...newProduct, stock: event.target.value })} placeholder="0" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div></div>
           <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">الوزن (كجم)</label><input type="number" step="0.01" value={newProduct.weight} onChange={(event) => setNewProduct({ ...newProduct, weight: event.target.value })} placeholder="0.00" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div>
         </div>
-        <div className="mt-6 flex gap-3"><button onClick={closeModal} className="flex-1 rounded-xl border border-slate-200 py-3 font-semibold text-slate-600 transition-colors hover:bg-slate-50">إلغاء</button><button onClick={handleAddProduct} disabled={!newProduct.name || !newProduct.price} className="flex-1 rounded-xl bg-brand-600 py-3 font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-50">إضافة المنتج</button></div>
+        <div className="mt-6 flex gap-3"><button onClick={closeModal} className="flex-1 rounded-xl border border-slate-200 py-3 font-semibold text-slate-600 transition-colors hover:bg-slate-50">إلغاء</button><button onClick={handleAddProduct} disabled={!newProduct.name || !newProduct.price || saving} className="flex-1 rounded-xl bg-brand-600 py-3 font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-50">{saving ? 'جارٍ الحفظ...' : 'إضافة المنتج'}</button></div>
       </motion.div></div>}</AnimatePresence>
     </div>
   );

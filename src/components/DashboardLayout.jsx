@@ -9,7 +9,7 @@ const navItems = [
   { screen: 'VOUCHERS', label: 'سجل المحفظة والإيصالات', icon: Receipt },
 ];
 
-export default function DashboardLayout({ currentScreen, onNavigate, vendor, children, otaStatus, onOtaRefresh, otaRefreshing }) {
+export default function DashboardLayout({ currentScreen, onNavigate, vendor, children, otaStatus, onOtaRefresh, otaRefreshing, onLogout }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const currentLabel = navItems.find((item) => item.screen === currentScreen)?.label || 'لوحة التحكم';
   const otaState = otaStatus?.status || 'checking';
@@ -33,12 +33,12 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
       </div>
 
       <div className="px-4 pt-4">
-        <div className={`flex items-center gap-3 rounded-xl border p-3 ${vendor.status === 'verified' ? 'border-financial-700/50 bg-financial-900/40' : 'border-alert-700/50 bg-alert-900/40'}`}>
-          <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${vendor.status === 'verified' ? 'bg-financial-500/20 text-financial-400' : 'bg-alert-500/20 text-alert-400'}`}>
+        <div className={`flex items-center gap-3 rounded-xl border p-3 ${vendor.apiCompanyId ? 'border-brand-700/50 bg-brand-900/40' : 'border-alert-700/50 bg-alert-900/40'}`}>
+          <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ${vendor.apiCompanyId ? 'bg-brand-500/20 text-brand-300' : 'bg-alert-500/20 text-alert-400'}`}>
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-white">{vendor.status === 'verified' ? 'حساب موثق' : 'قيد المراجعة'}</p>
+            <p className="text-xs font-semibold text-white">{vendor.apiCompanyId ? 'المتجر متصل' : 'قيد المراجعة'}</p>
             <p className="truncate text-xs text-slate-400">{vendor.vendorName}</p>
           </div>
         </div>
@@ -63,7 +63,7 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
       </nav>
 
       <div className="border-t border-slate-700/50 px-4 py-4">
-        <button className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-slate-400 transition-all hover:bg-alert-900/20 hover:text-alert-400">
+        <button onClick={onLogout} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right text-slate-400 transition-all hover:bg-alert-900/20 hover:text-alert-400">
           <LogOut className="h-5 w-5" />
           <span className="text-sm font-semibold">تسجيل الخروج</span>
         </button>
