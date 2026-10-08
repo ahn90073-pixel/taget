@@ -94,6 +94,17 @@ function App() {
     restore();
   }, [acceptSession, runOtaCheck]);
 
+  useEffect(() => {
+    const handleExpiredSession = () => {
+      sessionStore.clear();
+      setAuthToken(null);
+      setVendor(null);
+      setScreen('REGISTER');
+    };
+    window.addEventListener('tager:auth-expired', handleExpiredSession);
+    return () => window.removeEventListener('tager:auth-expired', handleExpiredSession);
+  }, []);
+
   const handleLogout = () => {
     sessionStore.clear();
     setAuthToken(null);

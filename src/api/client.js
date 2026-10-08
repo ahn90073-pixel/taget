@@ -13,7 +13,10 @@ export const sessionStore = {
 };
 
 export async function apiRequest(path, { method = 'GET', body, token = sessionStore.getToken() } = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
   let response;
+  let payload;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
@@ -23,12 +26,23 @@ export async function apiRequest(path, { method = 'GET', body, token = sessionSt
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      signal: controller.signal,
     });
-  } catch {
+    payload = await response.json().catch(() => ({}));
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('انتهت مهلة الطلب. تحقق من اتصال الإنترنت وحاول مرة أخرى.');
+    }
     throw new Error('تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.');
+  } finally {
+    clearTimeout(timeout);
   }
-  const payload = await response.json().catch(() => ({}));
   if (!response.ok || payload.success === false) {
+    if (response.status === 401 && token) {
+      sessionStore.clear();
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('tager:auth-expired'));
+      throw new Error('انتهت الجلسة أو لم يعد رمز الدخول صالحًا. سجّل الدخول مرة أخرى.');
+    }
     const message = payload.message || `حدث خطأ في الاتصال (${response.status})`;
     const fields = payload.errors?.map?.((item) => item.message).filter(Boolean).join('، ');
     throw new Error(fields ? `${message}: ${fields}` : message);
