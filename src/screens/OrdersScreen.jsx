@@ -20,7 +20,7 @@ export default function OrdersScreen({ vendor: VendorData }) {
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterCarrier, setFilterCarrier] = useState('all');
     const [printOrder, setPrintOrder] = useState(null);
-    const filtered = mockOrders.filter(o => (o.customerName.includes(search) || o.orderNumber.includes(search) || o.product.includes(search)) &&
+    const filtered = mockOrders.filter(o => (String(o?.customerName ?? '').includes(search) || String(o?.orderNumber ?? '').includes(search) || String(o?.product ?? '').includes(search)) &&
         (filterStatus === 'all' || o.status === filterStatus) &&
         (filterCarrier === 'all' || o.carrier === filterCarrier));
     return (_jsxs("div", { className: "space-y-6", children: [_jsxs("div", { children: [_jsx("h2", { className: "text-xl font-bold text-slate-900 font-display", children: "\u0637\u0644\u0628\u0627\u062A \u0627\u0644\u0634\u062D\u0646 \u0648\u062A\u062A\u0628\u0639 \u0627\u0644\u0634\u062D\u0646\u0627\u062A" }), _jsx("p", { className: "text-slate-400 text-sm mt-1", children: "\u0645\u062A\u0627\u0628\u0639\u0629 \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u0627\u0644\u0648\u0627\u0631\u062F\u0629 \u0648\u062D\u0627\u0644\u0629 \u0627\u0644\u0634\u062D\u0646 \u0645\u0639 \u0634\u0631\u0643\u0627\u062A \u0627\u0644\u0634\u062D\u0646" })] }), _jsx("div", { className: "grid grid-cols-2 lg:grid-cols-4 gap-4", children: ['preparing', 'picked_up', 'delivered', 'returned'].map(status => {

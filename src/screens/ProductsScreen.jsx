@@ -28,7 +28,7 @@ export default function ProductsScreen({ vendor, token }) {
   const fileInputRef = useRef(null);
 
   const filtered = products.filter((product) =>
-    (product.name.includes(search) || product.category.includes(search)) &&
+    (String(product?.name ?? '').includes(search) || String(product?.category ?? '').includes(search)) &&
     (filterCategory === 'all' || product.category === filterCategory)
   );
 
