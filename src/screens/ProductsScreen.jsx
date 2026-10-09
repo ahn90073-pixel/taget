@@ -25,6 +25,7 @@ export default function ProductsScreen({ vendor, token }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newProduct, setNewProduct] = useState(emptyProduct);
   const [imageError, setImageError] = useState('');
+  const [selectedRejection, setSelectedRejection] = useState(null);
   const fileInputRef = useRef(null);
 
   const filtered = products.filter((product) =>
@@ -111,13 +112,41 @@ export default function ProductsScreen({ vendor, token }) {
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         <div className="overflow-x-auto scrollbar-thin"><table className="w-full"><thead><tr className="border-b border-slate-100 bg-slate-50"><th className="px-6 py-4 text-right text-sm font-semibold text-slate-600">المنتج</th><th className="px-4 py-4 text-right text-sm font-semibold text-slate-600">التصنيف</th><th className="px-4 py-4 text-right text-sm font-semibold text-slate-600">السعر</th><th className="px-4 py-4 text-right text-sm font-semibold text-slate-600">المخزون</th><th className="hidden px-4 py-4 text-right text-sm font-semibold text-slate-600 sm:table-cell">الوزن (كجم)</th><th className="px-4 py-4 text-right text-sm font-semibold text-slate-600">الحالة</th><th className="px-4 py-4 text-right text-sm font-semibold text-slate-600">إجراءات</th></tr></thead>
           <tbody className="divide-y divide-slate-50">{filtered.map((product, index) => <motion.tr key={product.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.05 }} className="transition-colors hover:bg-slate-50">
-            <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-50 text-brand-600">{product.image ? <img src={product.image} alt={product.name} className="h-full w-full object-cover" /> : <Package className="h-5 w-5" />}</div><div className="min-w-0"><span className="text-sm font-semibold text-slate-800">{product.name}</span>{product.status === 'rejected' && product.rejectionReason && <p className="mt-1 max-w-xs text-xs leading-5 text-red-700" title={product.rejectionReason}><span className="font-bold">سبب الرفض:</span> {product.rejectionReason}</p>}</div></div></td>
+            <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-50 text-brand-600">{product.image ? <img src={product.image} alt={product.name} className="h-full w-full object-cover" /> : <Package className="h-5 w-5" />}</div><div className="min-w-0"><span className="text-sm font-semibold text-slate-800">{product.name}</span>{product.status === 'rejected' && product.rejectionReason && <button type="button" onClick={() => setSelectedRejection(product)} className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700 transition-colors hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300"><FileText className="h-3.5 w-3.5" />عرض سبب الرفض</button>}</div></div></td>
             <td className="px-4 py-4 text-sm text-slate-600">{product.category}</td><td className="px-4 py-4 text-sm font-bold text-slate-800">{formatEGP(product.price)}</td><td className={`px-4 py-4 text-sm font-semibold ${product.stock === 0 ? 'text-red-600' : product.stock < 50 ? 'text-alert-600' : 'text-slate-700'}`}>{formatNumber(product.stock)}</td><td className="hidden px-4 py-4 text-sm text-slate-600 sm:table-cell">{product.weight}</td>
             <td className="px-4 py-4"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${product.status === 'active' ? 'bg-financial-100 text-financial-700' : product.status === 'pending' ? 'bg-amber-100 text-amber-700' : product.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>{product.status === 'active' ? <CheckCircle2 className="h-3.5 w-3.5" /> : product.status === 'rejected' ? <AlertCircle className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}{product.status === 'active' ? 'نشط' : product.status === 'pending' ? 'قيد المراجعة' : product.status === 'rejected' ? 'مرفوض' : product.status === 'archived' ? 'مؤرشف' : 'مسودة'}</span></td>
             <td className="px-4 py-4"><div className="flex items-center gap-2"><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-brand-100 hover:text-brand-600"><Edit2 className="h-4 w-4" /></button><button onClick={() => handleDelete(product.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-600"><Trash2 className="h-4 w-4" /></button></div></td>
           </motion.tr>)}</tbody></table></div>
         {filtered.length === 0 && <div className="p-12 text-center"><Package className="mx-auto mb-3 h-12 w-12 text-slate-300" /><p className="text-slate-400">لا توجد منتجات مطابقة</p></div>}
       </div>
+
+      <AnimatePresence>
+        {selectedRejection && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="rejection-card-title">
+            <motion.button type="button" aria-label="إغلاق تفاصيل سبب الرفض" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedRejection(null)} className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, y: 18, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: 0.98 }} onClick={(event) => event.stopPropagation()} className="relative z-10 max-h-[88vh] w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
+              <div className="bg-gradient-to-l from-red-700 to-rose-600 px-6 pb-5 pt-6 text-white">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white/15"><AlertCircle className="h-6 w-6" /></span>
+                    <div><p className="text-xs font-semibold text-red-100">مراجعة المنتج</p><h3 id="rejection-card-title" className="mt-1 text-lg font-extrabold">تفاصيل سبب الرفض</h3></div>
+                  </div>
+                  <button type="button" aria-label="إغلاق" onClick={() => setSelectedRejection(null)} className="rounded-xl p-2 text-white/80 transition-colors hover:bg-white/15 hover:text-white"><X className="h-5 w-5" /></button>
+                </div>
+                <p className="mt-5 break-words text-sm font-bold leading-6" dir="auto">{selectedRejection.name}</p>
+              </div>
+              <div className="space-y-4 overflow-y-auto p-5 sm:p-6">
+                <div className="rounded-2xl border border-red-100 bg-red-50/70 p-4 sm:p-5">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-red-700">رسالة الإدارة</p>
+                  <p dir="auto" className="max-h-[45vh] overflow-y-auto whitespace-pre-wrap break-words text-sm leading-7 text-slate-800 [overflow-wrap:anywhere]">{selectedRejection.rejectionReason}</p>
+                </div>
+                <p className="text-center text-xs leading-5 text-slate-500">عدّل بيانات المنتج وفقًا للملاحظات ثم أعد إرساله للمراجعة.</p>
+                <button type="button" onClick={() => setSelectedRejection(null)} className="w-full rounded-xl bg-slate-900 py-3 text-sm font-bold text-white transition-colors hover:bg-slate-800">إغلاق</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>{showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeModal} className="absolute inset-0 bg-black/40 backdrop-blur-sm" /><motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl scrollbar-thin">
         <div className="mb-6 flex items-center justify-between"><h3 className="font-display text-xl font-bold text-slate-900">إضافة منتج جديد</h3><button onClick={closeModal} className="text-slate-400 hover:text-slate-600"><X className="h-6 w-6" /></button></div>
