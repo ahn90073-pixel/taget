@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutDashboard, Package, Receipt, Truck, Store, Menu, X, LogOut, ShieldCheck, ChevronLeft, RefreshCw } from 'lucide-react';
+import { exitAndroidApp, registerAndroidBackButton } from '@/utils/androidBackButton';
 
 const navItems = [
   { screen: 'DASHBOARD', label: 'لوحة التحكم', icon: LayoutDashboard },
@@ -19,6 +20,20 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
   const otaColor = otaState === 'error'
     ? 'text-alert-400'
     : otaState === 'current' || otaState === 'updated' ? 'text-financial-400' : 'text-brand-400';
+
+  useEffect(() => {
+    let active = true;
+    let removeListener = () => {};
+    registerAndroidBackButton(() => {
+      if (mobileOpen) return setMobileOpen(false);
+      if (currentScreen !== 'DASHBOARD') return onNavigate('DASHBOARD');
+      return exitAndroidApp();
+    }).then((remove) => {
+      if (active) removeListener = remove;
+      else remove();
+    });
+    return () => { active = false; removeListener(); };
+  }, [currentScreen, mobileOpen, onNavigate]);
 
   const sidebar = (
     <div className="flex h-full flex-col">
