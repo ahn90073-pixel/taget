@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Package, Edit2, Trash2, X, AlertCircle, CheckCircle2, FileText, Filter, ImagePlus, Upload, Image as ImageIcon } from 'lucide-react';
 import { formatEGP, formatNumber } from '@/utils/format';
 import { mapBackendProduct, productsApi } from '@/api/client';
+import CategoryHeader from '@/components/CategoryHeader';
 
 const emptyProduct = { sku: '', name: '', category: '', price: '', stock: '', weight: '', image: '' };
+const defaultCategoryNames = ['إلكترونيات', 'أزياء', 'مستلزمات منزلية', 'أجهزة كهربائية', 'جمال وعناية', 'رياضة ولياقة', 'كاميرات وتصوير', 'ساعات وإكسسوارات'];
 
 export default function ProductsScreen({ vendor, token }) {
   const [products, setProducts] = useState([]);
@@ -32,6 +34,7 @@ export default function ProductsScreen({ vendor, token }) {
     (filterCategory === 'all' || product.category === filterCategory)
   );
   const categories = [...new Set(products.map((product) => product.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar'));
+  const categoryOptions = [...new Set([...defaultCategoryNames, ...categories])];
 
   const handleImageChange = (event) => {
     const file = event.target.files?.[0];
@@ -64,7 +67,7 @@ export default function ProductsScreen({ vendor, token }) {
   };
 
   const handleAddProduct = async () => {
-    if (!newProduct.sku.trim() || !newProduct.name.trim() || newProduct.price === '' || saving) return;
+    if (!newProduct.sku.trim() || !newProduct.name.trim() || !newProduct.category.trim() || newProduct.price === '' || saving) return;
     setSaving(true); setApiError('');
     try {
       const created = await productsApi.create(vendor.apiCompanyId, {
@@ -105,6 +108,8 @@ export default function ProductsScreen({ vendor, token }) {
         <div><h2 className="font-display text-xl font-bold text-slate-900">كتالوج المنتجات</h2><p className="mt-1 text-sm text-slate-400">{loading ? 'جارٍ تحميل العدد من الخادم...' : apiError ? 'تعذر تحميل عدد المنتجات' : `إدارة منتجات متجرك — ${formatNumber(products.length)} منتج`}</p></div>
         <button onClick={() => canManageProducts && setShowAddModal(true)} disabled={!canManageProducts} className={`flex items-center gap-2 rounded-xl px-5 py-3 font-bold transition-all ${canManageProducts ? 'bg-brand-600 text-white shadow-lg shadow-brand-200 hover:bg-brand-700' : 'cursor-not-allowed bg-slate-200 text-slate-400'}`}><Plus className="h-5 w-5" />إضافة منتج جديد</button>
       </div>
+
+      <CategoryHeader categories={categories} selectedCategory={filterCategory} onSelect={setFilterCategory} />
 
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:flex-row">
         <div className="relative flex-1"><Search className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" /><input type="text" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث عن منتج..." className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-4 pr-11 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div>
@@ -156,11 +161,11 @@ export default function ProductsScreen({ vendor, token }) {
           <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">صورة المنتج <span className="font-normal text-slate-400">(اختياري)</span></label><input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />{newProduct.image ? <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"><img src={newProduct.image} alt="معاينة صورة المنتج" className="h-44 w-full object-cover" /><div className="absolute inset-x-0 bottom-0 flex justify-between bg-black/50 p-3"><button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm font-semibold text-white"><Upload className="h-4 w-4" />تغيير الصورة</button><button type="button" onClick={removeImage} className="text-sm font-semibold text-red-200 hover:text-white">حذف الصورة</button></div></div> : <button type="button" onClick={() => fileInputRef.current?.click()} className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-8 text-slate-500 transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-600"><ImagePlus className="h-8 w-8" /><span className="text-sm font-semibold">اضغط لاختيار صورة المنتج</span><span className="text-xs text-slate-400">PNG أو JPG — حتى 5 ميجابايت</span></button>}{imageError && <p className="mt-2 text-xs font-semibold text-red-600">{imageError}</p>}</div>
           <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">رمز المنتج (SKU)</label><input type="text" value={newProduct.sku} onChange={(event) => setNewProduct({ ...newProduct, sku: event.target.value })} placeholder="أدخل رمز المنتج المعتمد لديك" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div>
           <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">اسم المنتج</label><input type="text" value={newProduct.name} onChange={(event) => setNewProduct({ ...newProduct, name: event.target.value })} placeholder="اكتب اسم المنتج" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div>
-          <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">التصنيف <span className="font-normal text-slate-400">(اختياري)</span></label><input type="text" value={newProduct.category} onChange={(event) => setNewProduct({ ...newProduct, category: event.target.value })} placeholder="أدخل التصنيف إذا كان محددًا لديك" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div>
+          <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">تصنيف المنتج</label><select required value={newProduct.category} onChange={(event) => setNewProduct({ ...newProduct, category: event.target.value })} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"><option value="">اختر تصنيف المنتج</option>{categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}</select><p className="mt-1.5 text-xs text-slate-400">سيظهر هذا التصنيف في قائمة المنتجات ويساعدك على تصفيتها.</p></div>
           <div className="grid grid-cols-2 gap-4"><div><label className="mb-1.5 block text-sm font-semibold text-slate-700">السعر (ج.م)</label><input type="number" min="0" value={newProduct.price} onChange={(event) => setNewProduct({ ...newProduct, price: event.target.value })} placeholder="أدخل السعر الفعلي" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div><div><label className="mb-1.5 block text-sm font-semibold text-slate-700">المخزون</label><input type="number" min="0" step="1" value={newProduct.stock} onChange={(event) => setNewProduct({ ...newProduct, stock: event.target.value })} placeholder="أدخل الكمية الفعلية" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div></div>
           <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">الوزن (كجم)</label><input type="number" min="0" step="0.01" value={newProduct.weight} onChange={(event) => setNewProduct({ ...newProduct, weight: event.target.value })} placeholder="أدخل الوزن الفعلي" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div>
         </div>
-        <div className="mt-6 flex gap-3"><button onClick={closeModal} className="flex-1 rounded-xl border border-slate-200 py-3 font-semibold text-slate-600 transition-colors hover:bg-slate-50">إلغاء</button><button onClick={handleAddProduct} disabled={!newProduct.sku.trim() || !newProduct.name.trim() || newProduct.price === '' || saving} className="flex-1 rounded-xl bg-brand-600 py-3 font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-50">{saving ? 'جارٍ الحفظ...' : 'إضافة المنتج'}</button></div>
+        <div className="mt-6 flex gap-3"><button onClick={closeModal} className="flex-1 rounded-xl border border-slate-200 py-3 font-semibold text-slate-600 transition-colors hover:bg-slate-50">إلغاء</button><button onClick={handleAddProduct} disabled={!newProduct.sku.trim() || !newProduct.name.trim() || !newProduct.category.trim() || newProduct.price === '' || saving} className="flex-1 rounded-xl bg-brand-600 py-3 font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-50">{saving ? 'جارٍ الحفظ...' : 'إضافة المنتج'}</button></div>
       </motion.div></div>}</AnimatePresence>
     </div>
   );
