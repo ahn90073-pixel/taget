@@ -76,6 +76,7 @@ export function mapBackendProduct(product) {
     weight: Number(product.weight_grams || 0) / 1000,
     image: product.metadata?.image || product.image_url || '',
     status: product.status || 'pending',
+    rejectionReason: product.rejection_reason || product.rejectionReason || '',
   };
 }
 
