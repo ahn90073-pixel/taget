@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Package, Edit2, Trash2, X, AlertCircle, CheckCircle2, FileText, Filter, ImagePlus, Upload, Image as ImageIcon } from 'lucide-react';
+import { Plus, Search, Package, Edit2, Trash2, X, AlertCircle, CheckCircle2, FileText, Filter, ImagePlus, Upload } from 'lucide-react';
 import { formatEGP, formatNumber } from '@/utils/format';
 import { productCategories } from '@/data/mockData';
 import { mapBackendProduct, productsApi } from '@/api/client';
 
+const MAX_STOCK_QUANTITY = 2147483647;
 const emptyProduct = { name: '', category: productCategories[0], price: '', stock: '', weight: '', image: '' };
 
 export default function ProductsScreen({ vendor, token }) {
@@ -12,6 +13,17 @@ export default function ProductsScreen({ vendor, token }) {
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newProduct, setNewProduct] = useState(emptyProduct);
+  const [imageError, setImageError] = useState('');
+  const [editingStockProduct, setEditingStockProduct] = useState(null);
+  const [stockDraft, setStockDraft] = useState('');
+  const [stockSaving, setStockSaving] = useState(false);
+  const [stockEditorError, setStockEditorError] = useState('');
+  const fileInputRef = useRef(null);
+
   useEffect(() => {
     let active = true;
     productsApi.list(vendor.apiCompanyId).then((result) => {
@@ -20,12 +32,6 @@ export default function ProductsScreen({ vendor, token }) {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [vendor.apiCompanyId, token]);
-  const [search, setSearch] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newProduct, setNewProduct] = useState(emptyProduct);
-  const [imageError, setImageError] = useState('');
-  const fileInputRef = useRef(null);
 
   const filtered = products.filter((product) =>
     (String(product?.name ?? '').includes(search) || String(product?.category ?? '').includes(search)) &&
@@ -63,18 +69,71 @@ export default function ProductsScreen({ vendor, token }) {
   };
 
   const handleAddProduct = async () => {
-    if (!newProduct.name || !newProduct.price || saving) return;
-    setSaving(true); setApiError('');
+    if (!newProduct.name.trim() || newProduct.price === '' || saving) return;
+    const requestedStock = newProduct.stock === '' ? 0 : Number(newProduct.stock);
+    if (!Number.isInteger(requestedStock) || requestedStock < 0 || requestedStock > MAX_STOCK_QUANTITY) {
+      setApiError(`كمية المخزون يجب أن تكون عددًا صحيحًا من 0 إلى ${formatNumber(MAX_STOCK_QUANTITY)}.`);
+      return;
+    }
+
+    setSaving(true);
+    setApiError('');
     try {
       const created = await productsApi.create(vendor.apiCompanyId, {
-        sku: `SKU-${Date.now()}`, name: newProduct.name.trim(), price: Number(newProduct.price),
-        currency: 'EGP', weightGrams: Math.round((Number(newProduct.weight) || 0) * 1000),
+        sku: `SKU-${Date.now()}`,
+        name: newProduct.name.trim(),
+        price: Number(newProduct.price),
+        stockQuantity: requestedStock,
+        currency: 'EGP',
+        weightGrams: Math.round((Number(newProduct.weight) || 0) * 1000),
         metadata: { categoryLabel: newProduct.category, image: newProduct.image || '' },
       });
       setProducts((current) => [mapBackendProduct(created), ...current]);
       closeModal();
-    } catch (error) { setApiError(error.message); }
-    finally { setSaving(false); }
+    } catch (error) {
+      setApiError(error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openStockEditor = (product) => {
+    setStockEditorError('');
+    setStockDraft(String(product.stock ?? 0));
+    setEditingStockProduct(product);
+  };
+
+  const closeStockEditor = () => {
+    if (stockSaving) return;
+    setEditingStockProduct(null);
+    setStockEditorError('');
+  };
+
+  const handleSaveStock = async () => {
+    if (!editingStockProduct || stockSaving) return;
+    const rawStock = stockDraft.trim();
+    if (!/^\d+$/.test(rawStock)) {
+      setStockEditorError('أدخل كمية صحيحة لا تقل عن صفر.');
+      return;
+    }
+    const stockQuantity = Number(rawStock);
+    if (!Number.isSafeInteger(stockQuantity) || stockQuantity > MAX_STOCK_QUANTITY) {
+      setStockEditorError(`الكمية يجب ألا تتجاوز ${formatNumber(MAX_STOCK_QUANTITY)} قطعة.`);
+      return;
+    }
+
+    setStockSaving(true);
+    setStockEditorError('');
+    try {
+      const updated = await productsApi.update(vendor.apiCompanyId, editingStockProduct.id, { stockQuantity });
+      const mappedProduct = mapBackendProduct(updated);
+      setProducts((current) => current.map((product) => product.id === mappedProduct.id ? mappedProduct : product));
+      setEditingStockProduct(null);
+    } catch (error) {
+      setStockEditorError(error.message || 'تعذر تحديث المخزون. حاول مرة أخرى.');
+    } finally {
+      setStockSaving(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -83,8 +142,11 @@ export default function ProductsScreen({ vendor, token }) {
     try {
       await productsApi.remove(vendor.apiCompanyId, id);
       setProducts((current) => current.filter((product) => product.id !== id));
-    } catch (error) { setApiError(error.message); }
+    } catch (error) {
+      setApiError(error.message);
+    }
   };
+
   const canManageProducts = Boolean(vendor.apiCompanyId);
 
   return (
@@ -114,7 +176,7 @@ export default function ProductsScreen({ vendor, token }) {
             <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-50 text-brand-600">{product.image ? <img src={product.image} alt={product.name} className="h-full w-full object-cover" /> : <Package className="h-5 w-5" />}</div><span className="text-sm font-semibold text-slate-800">{product.name}</span></div></td>
             <td className="px-4 py-4 text-sm text-slate-600">{product.category}</td><td className="px-4 py-4 text-sm font-bold text-slate-800">{formatEGP(product.price)}</td><td className={`px-4 py-4 text-sm font-semibold ${product.stock === 0 ? 'text-red-600' : product.stock < 50 ? 'text-alert-600' : 'text-slate-700'}`}>{formatNumber(product.stock)}</td><td className="hidden px-4 py-4 text-sm text-slate-600 sm:table-cell">{product.weight}</td>
             <td className="px-4 py-4"><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${product.status === 'active' ? 'bg-financial-100 text-financial-700' : product.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{product.status === 'active' ? <CheckCircle2 className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}{product.status === 'active' ? 'نشط' : product.status === 'pending' ? 'قيد المراجعة' : product.status === 'archived' ? 'مؤرشف' : 'مسودة'}</span></td>
-            <td className="px-4 py-4"><div className="flex items-center gap-2"><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-brand-100 hover:text-brand-600"><Edit2 className="h-4 w-4" /></button><button onClick={() => handleDelete(product.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-600"><Trash2 className="h-4 w-4" /></button></div></td>
+            <td className="px-4 py-4"><div className="flex items-center gap-2"><button type="button" onClick={() => openStockEditor(product)} title="تعديل المخزون" aria-label={`تعديل مخزون ${product.name}`} className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-brand-100 hover:text-brand-600"><Edit2 className="h-4 w-4" /></button><button onClick={() => handleDelete(product.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-600"><Trash2 className="h-4 w-4" /></button></div></td>
           </motion.tr>)}</tbody></table></div>
         {filtered.length === 0 && <div className="p-12 text-center"><Package className="mx-auto mb-3 h-12 w-12 text-slate-300" /><p className="text-slate-400">لا توجد منتجات مطابقة</p></div>}
       </div>
@@ -125,10 +187,20 @@ export default function ProductsScreen({ vendor, token }) {
           <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">صورة المنتج <span className="font-normal text-slate-400">(اختياري)</span></label><input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />{newProduct.image ? <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"><img src={newProduct.image} alt="معاينة صورة المنتج" className="h-44 w-full object-cover" /><div className="absolute inset-x-0 bottom-0 flex justify-between bg-black/50 p-3"><button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm font-semibold text-white"><Upload className="h-4 w-4" />تغيير الصورة</button><button type="button" onClick={removeImage} className="text-sm font-semibold text-red-200 hover:text-white">حذف الصورة</button></div></div> : <button type="button" onClick={() => fileInputRef.current?.click()} className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-8 text-slate-500 transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-600"><ImagePlus className="h-8 w-8" /><span className="text-sm font-semibold">اضغط لاختيار صورة المنتج</span><span className="text-xs text-slate-400">PNG أو JPG — حتى 5 ميجابايت</span></button>}{imageError && <p className="mt-2 text-xs font-semibold text-red-600">{imageError}</p>}</div>
           <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">اسم المنتج</label><input type="text" value={newProduct.name} onChange={(event) => setNewProduct({ ...newProduct, name: event.target.value })} placeholder="مثال: كابل شحن سريع" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div>
           <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">التصنيف</label><select value={newProduct.category} onChange={(event) => setNewProduct({ ...newProduct, category: event.target.value })} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500">{productCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></div>
-          <div className="grid grid-cols-2 gap-4"><div><label className="mb-1.5 block text-sm font-semibold text-slate-700">السعر (ج.م)</label><input type="number" value={newProduct.price} onChange={(event) => setNewProduct({ ...newProduct, price: event.target.value })} placeholder="0" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div><div><label className="mb-1.5 block text-sm font-semibold text-slate-700">المخزون</label><input type="number" value={newProduct.stock} onChange={(event) => setNewProduct({ ...newProduct, stock: event.target.value })} placeholder="0" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div></div>
+          <div className="grid grid-cols-2 gap-4"><div><label className="mb-1.5 block text-sm font-semibold text-slate-700">السعر (ج.م)</label><input type="number" value={newProduct.price} onChange={(event) => setNewProduct({ ...newProduct, price: event.target.value })} placeholder="0" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div><div><label className="mb-1.5 block text-sm font-semibold text-slate-700">المخزون</label><input type="number" min="0" max={MAX_STOCK_QUANTITY} step="1" value={newProduct.stock} onChange={(event) => setNewProduct({ ...newProduct, stock: event.target.value })} placeholder="0" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div></div>
           <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">الوزن (كجم)</label><input type="number" step="0.01" value={newProduct.weight} onChange={(event) => setNewProduct({ ...newProduct, weight: event.target.value })} placeholder="0.00" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div>
         </div>
-        <div className="mt-6 flex gap-3"><button onClick={closeModal} className="flex-1 rounded-xl border border-slate-200 py-3 font-semibold text-slate-600 transition-colors hover:bg-slate-50">إلغاء</button><button onClick={handleAddProduct} disabled={!newProduct.name || !newProduct.price || saving} className="flex-1 rounded-xl bg-brand-600 py-3 font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-50">{saving ? 'جارٍ الحفظ...' : 'إضافة المنتج'}</button></div>
+        <div className="mt-6 flex gap-3"><button onClick={closeModal} className="flex-1 rounded-xl border border-slate-200 py-3 font-semibold text-slate-600 transition-colors hover:bg-slate-50">إلغاء</button><button onClick={handleAddProduct} disabled={!newProduct.name.trim() || newProduct.price === '' || saving} className="flex-1 rounded-xl bg-brand-600 py-3 font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-50">{saving ? 'جارٍ الحفظ...' : 'إضافة المنتج'}</button></div>
+      </motion.div></div>}</AnimatePresence>
+
+      <AnimatePresence>{editingStockProduct && <div className="fixed inset-0 z-50 flex items-center justify-center p-4"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeStockEditor} className="absolute inset-0 bg-black/40 backdrop-blur-sm" /><motion.div role="dialog" aria-modal="true" aria-labelledby="stock-editor-title" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="mb-5 flex items-center justify-between"><h3 id="stock-editor-title" className="font-display text-xl font-bold text-slate-900">تعديل مخزون المنتج</h3><button type="button" onClick={closeStockEditor} disabled={stockSaving} aria-label="إغلاق" className="text-slate-400 hover:text-slate-600 disabled:opacity-50"><X className="h-6 w-6" /></button></div>
+        <p className="mb-4 text-sm text-slate-600">{editingStockProduct.name}</p>
+        <label htmlFor="stock-quantity" className="mb-1.5 block text-sm font-semibold text-slate-700">الكمية المتاحة للبيع</label>
+        <input id="stock-quantity" type="number" min="0" max={MAX_STOCK_QUANTITY} step="1" inputMode="numeric" autoFocus value={stockDraft} onChange={(event) => setStockDraft(event.target.value)} className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
+        <p className="mt-2 text-xs text-slate-500">بعد الحفظ، ستظهر الكمية الجديدة في متجر الجمهور للمنتج النشط.</p>
+        {stockEditorError && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{stockEditorError}</p>}
+        <div className="mt-6 flex gap-3"><button type="button" onClick={closeStockEditor} disabled={stockSaving} className="flex-1 rounded-xl border border-slate-200 py-3 font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50">إلغاء</button><button type="button" onClick={handleSaveStock} disabled={stockSaving} className="flex-1 rounded-xl bg-brand-600 py-3 font-bold text-white transition-colors hover:bg-brand-700 disabled:opacity-50">{stockSaving ? 'جارٍ الحفظ...' : 'حفظ الكمية'}</button></div>
       </motion.div></div>}</AnimatePresence>
     </div>
   );
