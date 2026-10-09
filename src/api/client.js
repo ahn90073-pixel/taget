@@ -70,12 +70,12 @@ export function mapBackendProduct(product) {
     id: product.id,
     sku: product.sku,
     name: product.name || '',
-    category: product.category?.name || product.category_name || product.metadata?.categoryLabel || 'عام',
-    price: Number(product.price || 0),
-    stock: Number(product.stock_quantity ?? product.stock ?? 0),
-    weight: Number(product.weight_grams || 0) / 1000,
+    category: product.category?.name || product.category_name || product.metadata?.categoryLabel || '',
+    price: product.price == null ? null : Number(product.price),
+    stock: product.stock_quantity == null && product.stock == null ? null : Number(product.stock_quantity ?? product.stock),
+    weight: product.weight_grams == null ? null : Number(product.weight_grams) / 1000,
     image: product.metadata?.image || product.image_url || '',
-    status: product.status || 'pending',
+    status: product.status || '',
     rejectionReason: product.rejection_reason || product.rejectionReason || '',
   };
 }

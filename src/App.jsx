@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { initialFinancialData, mockVouchers } from '@/data/mockData';
 import { recordAppLaunch } from '@/plugins/nativeStorage';
 import { checkForOtaUpdate } from '@/utils/liveUpdates';
 import { initializePushNotifications } from '@/utils/pushNotifications';
@@ -12,28 +11,25 @@ import VouchersScreen from '@/screens/VouchersScreen';
 import OrdersScreen from '@/screens/OrdersScreen';
 
 function companyToVendor(company, user) {
-  const storeName = company.display_name || company.displayName || company.legal_name || company.legalName || 'متجري';
   return {
     apiCompanyId: company.id,
-    vendorName: user?.full_name || user?.fullName || user?.email?.split('@')[0] || 'التاجر',
+    vendorName: user?.full_name || user?.fullName || '',
     email: user?.email || company.email || '',
     phone: user?.phone || '',
-    storeName,
+    storeName: company.display_name || company.displayName || company.legal_name || company.legalName || '',
     storeNameEn: company.slug || '',
-    status: 'connected',
-    warehouseAddress: { governorate: 'مصر', city: '', street: '' },
-    payoutMethod: '',
+    status: company.status || '',
+    warehouseAddress: company.warehouse_address || company.warehouseAddress || null,
+    payoutMethod: company.payout_method || company.payoutMethod || '',
   };
 }
 
 function App() {
   const [otaStatus, setOtaStatus] = useState({ status: 'checking', message: 'جاري تجهيز فحص التحديث الهوائي...' });
   const [otaRefreshing, setOtaRefreshing] = useState(false);
-  const [screen, setScreen] = useState('REGISTER');
+  const [screen, setScreen] = useState('DASHBOARD');
   const [vendor, setVendor] = useState(null);
   const [authToken, setAuthToken] = useState(sessionStore.getToken());
-  const [financialData, setFinancialData] = useState(initialFinancialData);
-  const [vouchers, setVouchers] = useState(mockVouchers);
 
   const runOtaCheck = useCallback(async () => {
     setOtaRefreshing(true);
@@ -47,21 +43,22 @@ function App() {
   }, []);
 
   const acceptSession = useCallback(async (token, user, requestedStoreName = '') => {
-    sessionStore.setToken(token);
-    setAuthToken(token);
     let companies = await authApi.companies();
     if (!Array.isArray(companies)) companies = companies?.items || [];
     let company = companies[0];
-    if (!company) {
-      const suggestedName = requestedStoreName || user?.full_name || user?.email?.split('@')[0] || 'متجري';
+    if (!company && requestedStoreName.trim()) {
       company = await authApi.createCompany({
-        slug: makeCompanySlug(suggestedName),
-        legalName: suggestedName,
-        displayName: suggestedName,
+        slug: makeCompanySlug(requestedStoreName),
+        legalName: requestedStoreName,
+        displayName: requestedStoreName,
         email: user?.email,
       });
     }
-    if (!company?.id) throw new Error('تم تسجيل الدخول، لكن الخادم لم يُرجع بيانات المتجر. راجع استجابة API الخاصة بالشركات.');
+    if (!company?.id) {
+      throw new Error('لم يعثر الخادم على متجر مرتبط بهذا الحساب. لم ننشئ بيانات متجر افتراضية؛ تواصل مع إدارة المنصة لربط المتجر بحسابك.');
+    }
+    sessionStore.setToken(token);
+    setAuthToken(token);
     sessionStore.setCompany(company);
     setVendor(companyToVendor(company, user));
     setScreen('DASHBOARD');
@@ -72,7 +69,7 @@ function App() {
       ? await authApi.register({ email, password, fullName: vendorName, phone })
       : await authApi.login({ email, password });
     if (!result?.token || !result?.user) throw new Error('استجابة المصادقة لا تحتوي على بيانات المستخدم أو رمز الجلسة.');
-    await acceptSession(result.token, result.user, storeName);
+    await acceptSession(result.token, result.user, mode === 'register' ? storeName : '');
   };
 
   useEffect(() => {
@@ -99,7 +96,7 @@ function App() {
       sessionStore.clear();
       setAuthToken(null);
       setVendor(null);
-      setScreen('REGISTER');
+      setScreen('DASHBOARD');
     };
     window.addEventListener('tager:auth-expired', handleExpiredSession);
     return () => window.removeEventListener('tager:auth-expired', handleExpiredSession);
@@ -109,23 +106,14 @@ function App() {
     sessionStore.clear();
     setAuthToken(null);
     setVendor(null);
-    setScreen('REGISTER');
-  };
-  const handlePaymentReceived = (amount) => {
-    setFinancialData((prev) => ({ ...prev, owedBalance: prev.owedBalance - amount }));
-    const newVoucher = {
-      id: String(Date.now()), receiptNumber: `PAY-2025-${String(vouchers.length + 1).padStart(4, '0')}`,
-      date: new Date().toLocaleDateString('ar-EG'), amount,
-      remaining: financialData.owedBalance - amount, whatsappSent: true, vendor: vendor?.storeName || '',
-    };
-    setVouchers([newVoucher, ...vouchers]);
+    setScreen('DASHBOARD');
   };
 
   if (!vendor || !authToken) return <RegisterScreen onAuthComplete={handleAuthComplete} />;
   return <DashboardLayout currentScreen={screen} onNavigate={setScreen} vendor={vendor} onLogout={handleLogout} otaStatus={otaStatus} onOtaRefresh={runOtaCheck} otaRefreshing={otaRefreshing}>
-    {screen === 'DASHBOARD' && <DashboardScreen vendor={vendor} financialData={financialData} onPaymentReceived={handlePaymentReceived} vouchers={vouchers} />}
+    {screen === 'DASHBOARD' && <DashboardScreen vendor={vendor} token={authToken} />}
     {screen === 'PRODUCTS' && <ProductsScreen vendor={vendor} token={authToken} />}
-    {screen === 'VOUCHERS' && <VouchersScreen vendor={vendor} vouchers={vouchers} financialData={financialData} />}
+    {screen === 'VOUCHERS' && <VouchersScreen vendor={vendor} />}
     {screen === 'ORDERS' && <OrdersScreen vendor={vendor} />}
     <div className="sr-only" aria-hidden="true">API: {API_BASE_URL}</div>
   </DashboardLayout>;

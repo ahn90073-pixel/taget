@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Package, Receipt, Truck, Store, Menu, X, LogOut, ShieldCheck, ChevronLeft, Bell, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Package, Receipt, Truck, Store, Menu, X, LogOut, ShieldCheck, ChevronLeft, RefreshCw } from 'lucide-react';
 
 const navItems = [
   { screen: 'DASHBOARD', label: 'لوحة التحكم', icon: LayoutDashboard },
@@ -96,7 +96,6 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200"><Bell className="h-5 w-5" /><span className="absolute left-2 top-2 h-2 w-2 rounded-full bg-alert-500" /></button>
             <div className="flex items-center gap-2 pr-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white">{vendor.vendorName.charAt(0)}</div>
               <div className="hidden sm:block"><p className="text-sm font-semibold text-slate-800">{vendor.vendorName}</p><p className="text-xs text-slate-400">{vendor.email}</p></div>
