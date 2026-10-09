@@ -1,85 +1,96 @@
-import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
-import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, Truck, Wallet, Package, Users, CheckCircle2, MessageCircle, Download, ArrowUpRight, ArrowDownRight, DollarSign, Loader2, Sparkles, Receipt } from 'lucide-react';
-import { formatEGP, formatNumber } from '@/utils/format';
-import { mockProducts, mockOrders } from '@/data/mockData';
-export default function DashboardScreen({ vendor, financialData, onPaymentReceived, vouchers }) {
-    const [displayBalance, setDisplayBalance] = useState(financialData.owedBalance);
-    const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [paymentAmount, setPaymentAmount] = useState(200000);
-    const [processingPayment, setProcessingPayment] = useState(false);
-    const [paymentSuccess, setPaymentSuccess] = useState(false);
-    const [showWhatsAppAlert, setShowWhatsAppAlert] = useState(false);
-    const prevBalanceRef = useRef(financialData.owedBalance);
-    // Animate balance changes
-    useEffect(() => {
-        const startVal = prevBalanceRef.current;
-        const endVal = financialData.owedBalance;
-        if (startVal === endVal)
-            return;
-        const duration = 1000;
-        const startTime = performance.now();
-        const animate = (now) => {
-            const elapsed = now - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            const current = Math.round(startVal + (endVal - startVal) * eased);
-            setDisplayBalance(current);
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            }
-            else {
-                prevBalanceRef.current = endVal;
-            }
-        };
-        requestAnimationFrame(animate);
-    }, [financialData.owedBalance]);
-    const handlePaymentSubmit = () => {
-        setProcessingPayment(true);
-        setTimeout(() => {
-            setProcessingPayment(false);
-            setPaymentSuccess(true);
-            onPaymentReceived(paymentAmount);
-            setTimeout(() => {
-                setPaymentSuccess(false);
-                setShowPaymentModal(false);
-                setShowWhatsAppAlert(true);
-                setTimeout(() => setShowWhatsAppAlert(false), 5000);
-            }, 1500);
-        }, 2000);
-    };
-    const recentOrders = mockOrders.slice(0, 4);
-    const activeProducts = mockProducts.filter(p => p.status === 'active').length;
-    const deliveredCount = mockOrders.filter(o => o.status === 'delivered').length;
-    return (_jsxs("div", { className: "space-y-6", children: [_jsxs(motion.div, { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, className: "bg-gradient-to-l from-[#102a43] via-[#0f766e] to-[#0f3d56] rounded-2xl p-6 sm:p-8 text-white relative overflow-hidden shadow-lg shadow-teal-900/20", children: [_jsx("div", { className: "absolute top-0 left-0 w-64 h-64 bg-amber-300/20 rounded-full blur-3xl -translate-y-1/2 -translate-x-1/2" }), _jsxs("div", { className: "relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4", children: [_jsxs("div", { children: [_jsx("p", { className: "text-amber-200 text-sm mb-1", children: "\u0645\u0631\u062D\u0628\u0627\u064B\u060C" }), _jsx("h2", { className: "text-2xl font-bold font-display", children: vendor.vendorName }), _jsxs("p", { className: "text-teal-100 text-sm mt-1", children: [vendor.storeName, " \u2022 ", vendor.warehouseAddress.governorate] })] }), _jsxs("div", { className: "flex items-center gap-2 bg-white/15 backdrop-blur px-4 py-2 rounded-xl border border-white/20", children: [_jsx(Sparkles, { className: "w-5 h-5 text-amber-300" }), _jsx("span", { className: "text-sm", children: "\u062D\u0633\u0627\u0628 \u0645\u0648\u062B\u0642 \u2014 \u0646\u0634\u0637" })] })] })] }), _jsxs("div", { className: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6", children: [_jsx(StatCard, { title: "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A", value: formatEGP(financialData.totalSales), icon: _jsx(TrendingUp, { className: "w-6 h-6" }), color: "brand", trend: "+12.5%", trendUp: true }), _jsx(StatCard, { title: "\u0627\u0644\u0631\u0635\u064A\u062F \u0627\u0644\u0645\u0639\u0644\u0642 (\u0641\u064A \u0627\u0644\u0637\u0631\u064A\u0642)", value: formatEGP(financialData.pendingTransit), icon: _jsx(Truck, { className: "w-6 h-6" }), color: "alert", trend: `${mockOrders.filter(o => o.status === 'picked_up').length} شحنة`, trendUp: false }), _jsx(StatCard, { title: "\u0627\u0644\u0631\u0635\u064A\u062F \u0627\u0644\u0645\u0633\u062A\u062D\u0642", value: formatEGP(financialData.owedBalance), icon: _jsx(Wallet, { className: "w-6 h-6" }), color: "financial", trend: "\u0645\u062D\u0635\u0651\u0644 \u0648\u062C\u0627\u0647\u0632 \u0644\u0644\u0633\u062D\u0628", trendUp: true, highlight: true })] }), _jsxs(motion.div, { initial: { opacity: 0, scale: 0.98 }, animate: { opacity: 1, scale: 1 }, className: "bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden", children: [_jsxs("div", { className: "bg-gradient-to-l from-financial-600 to-financial-700 p-6 text-white", children: [_jsxs("div", { className: "flex items-center justify-between mb-4", children: [_jsxs("div", { className: "flex items-center gap-3", children: [_jsx("div", { className: "w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center", children: _jsx(DollarSign, { className: "w-7 h-7" }) }), _jsxs("div", { children: [_jsx("h3", { className: "text-lg font-bold font-display", children: "\u0627\u0644\u0639\u062F\u0627\u062F \u0627\u0644\u0645\u0627\u0644\u064A \u0627\u0644\u0645\u0633\u062A\u062D\u0642 (Live)" }), _jsx("p", { className: "text-financial-100 text-sm", children: "\u0627\u0644\u0645\u0628\u0627\u0644\u063A \u0627\u0644\u0645\u062D\u0635\u0651\u0629 \u0627\u0644\u062C\u0627\u0647\u0632\u0629 \u0644\u0644\u0627\u0633\u062A\u0644\u0627\u0645 \u0645\u0646 \u0627\u0644\u0625\u062F\u0627\u0631\u0629" })] })] }), _jsxs("div", { className: "hidden sm:flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full text-xs", children: [_jsx("span", { className: "w-2 h-2 rounded-full bg-financial-300 animate-pulse" }), "\u0645\u0628\u0627\u0634\u0631"] })] }), _jsx(motion.div, { className: "text-4xl sm:text-5xl font-bold font-display tracking-tight", children: formatEGP(displayBalance) }, displayBalance), _jsxs("div", { className: "mt-4 flex flex-col sm:flex-row gap-3", children: [_jsxs("button", { onClick: () => setShowPaymentModal(true), className: "flex-1 bg-white text-financial-700 font-bold py-3 rounded-xl hover:bg-financial-50 transition-colors flex items-center justify-center gap-2", children: [_jsx(Download, { className: "w-5 h-5" }), "\u062A\u0633\u062C\u064A\u0644 \u0633\u062F\u0627\u062F \u0645\u0646 \u0627\u0644\u0625\u062F\u0627\u0631\u0629"] }), _jsxs("div", { className: "flex-1 bg-white/10 rounded-xl px-4 py-3 text-sm flex items-center justify-between", children: [_jsx("span", { className: "text-financial-100", children: "\u0622\u062E\u0631 \u062A\u062D\u062F\u064A\u062B:" }), _jsx("span", { className: "font-semibold", children: "\u0645\u0646\u0630 \u0665 \u062F\u0642\u0627\u0626\u0642" })] })] })] }), _jsxs("div", { className: "p-6 grid grid-cols-1 sm:grid-cols-3 gap-4", children: [_jsx(LedgerItem, { label: "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A", value: formatEGP(financialData.totalSales), icon: _jsx(TrendingUp, { className: "w-5 h-5" }), color: "text-brand-600 bg-brand-50" }), _jsx(LedgerItem, { label: "\u0645\u0639\u0644\u0651\u0642 \u0641\u064A \u0627\u0644\u0634\u062D\u0646", value: formatEGP(financialData.pendingTransit), icon: _jsx(Truck, { className: "w-5 h-5" }), color: "text-alert-600 bg-alert-50" }), _jsx(LedgerItem, { label: "\u0635\u0627\u0641\u064A \u0627\u0644\u0645\u0633\u062A\u062D\u0642", value: formatEGP(financialData.owedBalance), icon: _jsx(Wallet, { className: "w-5 h-5" }), color: "text-financial-600 bg-financial-50" })] })] }), _jsxs("div", { className: "grid grid-cols-2 lg:grid-cols-4 gap-4", children: [_jsx(MiniStat, { icon: _jsx(Package, { className: "w-5 h-5" }), label: "\u0645\u0646\u062A\u062C\u0627\u062A \u0646\u0634\u0637\u0629", value: `${activeProducts}`, color: "bg-brand-50 text-brand-600" }), _jsx(MiniStat, { icon: _jsx(Truck, { className: "w-5 h-5" }), label: "\u0634\u062D\u0646\u0627\u062A \u0645\u0633\u0644\u0651\u0645\u0629", value: `${deliveredCount}`, color: "bg-financial-50 text-financial-600" }), _jsx(MiniStat, { icon: _jsx(Users, { className: "w-5 h-5" }), label: "\u0639\u0645\u0644\u0627\u0621", value: formatNumber(1248), color: "bg-purple-50 text-purple-600" }), _jsx(MiniStat, { icon: _jsx(Receipt, { className: "w-5 h-5" }), label: "\u0625\u064A\u0635\u0627\u0644\u0627\u062A \u0633\u062F\u0627\u062F", value: `${vouchers.length}`, color: "bg-alert-50 text-alert-600" })] }), _jsxs("div", { className: "bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden", children: [_jsx("div", { className: "p-6 border-b border-slate-100 flex items-center justify-between", children: _jsx("h3", { className: "text-lg font-bold text-slate-900 font-display", children: "\u0623\u062D\u062F\u062B \u0627\u0644\u0637\u0644\u0628\u0627\u062A" }) }), _jsx("div", { className: "divide-y divide-slate-50", children: recentOrders.map((order, i) => (_jsxs(motion.div, { initial: { opacity: 0, x: 20 }, animate: { opacity: 1, x: 0 }, transition: { delay: i * 0.1 }, className: "p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors", children: [_jsx("div", { className: `w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${order.status === 'delivered' ? 'bg-financial-100 text-financial-600' :
-                                        order.status === 'returned' ? 'bg-red-100 text-red-600' :
-                                            'bg-alert-100 text-alert-600'}`, children: _jsx(Truck, { className: "w-5 h-5" }) }), _jsxs("div", { className: "flex-1 min-w-0", children: [_jsx("p", { className: "font-semibold text-slate-800 text-sm truncate", children: order.customerName }), _jsxs("p", { className: "text-slate-400 text-xs truncate", children: [order.product, " \u2022 ", order.carrier] })] }), _jsxs("div", { className: "text-left", children: [_jsx("p", { className: "font-bold text-slate-800 text-sm", children: formatEGP(order.amount) }), _jsx(OrderStatusBadge, { status: order.status })] })] }, order.id))) })] }), _jsx(AnimatePresence, { children: showPaymentModal && (_jsx(Modal, { onClose: () => !processingPayment && !paymentSuccess && setShowPaymentModal(false), children: paymentSuccess ? (_jsxs(motion.div, { initial: { opacity: 0, scale: 0.9 }, animate: { opacity: 1, scale: 1 }, className: "text-center py-6", children: [_jsx(motion.div, { initial: { scale: 0 }, animate: { scale: 1 }, transition: { type: 'spring', stiffness: 200, delay: 0.1 }, className: "w-20 h-20 rounded-full bg-financial-100 flex items-center justify-center mx-auto mb-4", children: _jsx(CheckCircle2, { className: "w-12 h-12 text-financial-600" }) }), _jsx("h3", { className: "text-xl font-bold text-slate-900 font-display mb-2", children: "\u062A\u0645 \u062A\u0633\u062C\u064A\u0644 \u0627\u0644\u0633\u062F\u0627\u062F \u0628\u0646\u062C\u0627\u062D!" }), _jsxs("p", { className: "text-slate-500 mb-4", children: ["\u062A\u0645 \u062E\u0635\u0645 ", formatEGP(paymentAmount), " \u0645\u0646 \u0631\u0635\u064A\u062F\u0643 \u0627\u0644\u0645\u0633\u062A\u062D\u0642"] }), _jsx("p", { className: "text-financial-600 font-semibold text-sm", children: "\u0633\u064A\u062A\u0645 \u0625\u0631\u0633\u0627\u0644 \u0625\u064A\u0635\u0627\u0644 \u0627\u0644\u0633\u062F\u0627\u062F \u0625\u0644\u0649 \u0648\u0627\u062A\u0633\u0627\u0628 \u0627\u0644\u062E\u0627\u0635 \u0628\u0643" })] })) : (_jsxs("div", { children: [_jsx("h3", { className: "text-xl font-bold text-slate-900 font-display mb-2", children: "\u062A\u0633\u062C\u064A\u0644 \u0633\u062F\u0627\u062F \u0645\u0646 \u0627\u0644\u0625\u062F\u0627\u0631\u0629" }), _jsx("p", { className: "text-slate-500 text-sm mb-6", children: "\u0647\u0630\u0647 \u0639\u0645\u0644\u064A\u0629 \u062A\u062C\u0631\u064A\u0628\u064A\u0629 \u0644\u0645\u062D\u0627\u0643\u0627\u0629 \u0627\u0633\u062A\u0644\u0627\u0645 \u062F\u0641\u0639\u0629 \u0645\u0646 \u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0645\u0646\u0635\u0629" }), _jsxs("div", { className: "bg-slate-50 rounded-xl p-4 mb-4", children: [_jsx("p", { className: "text-slate-500 text-sm mb-1", children: "\u0627\u0644\u0631\u0635\u064A\u062F \u0627\u0644\u0645\u0633\u062A\u062D\u0642 \u0627\u0644\u062D\u0627\u0644\u064A" }), _jsx("p", { className: "text-2xl font-bold text-financial-600 font-display", children: formatEGP(financialData.owedBalance) })] }), _jsx("label", { className: "block text-sm font-semibold text-slate-700 mb-2", children: "\u0645\u0628\u0644\u063A \u0627\u0644\u0633\u062F\u0627\u062F" }), _jsxs("div", { className: "relative mb-4", children: [_jsx("input", { type: "number", value: paymentAmount, onChange: (e) => setPaymentAmount(Number(e.target.value)), className: "w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-financial-500 text-lg font-bold" }), _jsx("span", { className: "absolute left-4 top-1/2 -translate-y-1/2 text-slate-400", children: "\u062C.\u0645" })] }), _jsx("div", { className: "bg-financial-50 rounded-xl p-4 mb-6", children: _jsxs("div", { className: "flex items-center justify-between text-sm", children: [_jsx("span", { className: "text-financial-700", children: "\u0627\u0644\u0631\u0635\u064A\u062F \u0628\u0639\u062F \u0627\u0644\u0633\u062F\u0627\u062F:" }), _jsx("span", { className: "font-bold text-financial-700", children: formatEGP(financialData.owedBalance - paymentAmount) })] }) }), _jsx("button", { onClick: handlePaymentSubmit, disabled: processingPayment || paymentAmount <= 0 || paymentAmount > financialData.owedBalance, className: "w-full bg-financial-600 hover:bg-financial-700 text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50", children: processingPayment ? (_jsxs(_Fragment, { children: [_jsx(Loader2, { className: "w-5 h-5 animate-spin" }), "\u062C\u0627\u0631\u064A \u0645\u0639\u0627\u0644\u062C\u0629 \u0627\u0644\u0633\u062F\u0627\u062F..."] })) : (_jsxs(_Fragment, { children: [_jsx(CheckCircle2, { className: "w-5 h-5" }), "\u062A\u0623\u0643\u064A\u062F \u0627\u0644\u0633\u062F\u0627\u062F"] })) })] })) })) }), _jsx(AnimatePresence, { children: showWhatsAppAlert && (_jsxs(motion.div, { initial: { opacity: 0, y: -20, x: '-50%' }, animate: { opacity: 1, y: 0, x: '-50%' }, exit: { opacity: 0, y: -20, x: '-50%' }, className: "fixed top-20 left-1/2 z-50 bg-white rounded-2xl shadow-2xl border border-financial-200 p-4 flex items-center gap-3 max-w-sm", children: [_jsx("div", { className: "w-12 h-12 rounded-xl bg-financial-100 flex items-center justify-center flex-shrink-0", children: _jsx(MessageCircle, { className: "w-7 h-7 text-financial-600" }) }), _jsxs("div", { children: [_jsx("p", { className: "font-bold text-slate-800 text-sm", children: "\u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u0634\u064A\u0643 \u0633\u062F\u0627\u062F \u0648\u0625\u0631\u0633\u0627\u0644\u0647 \u0644\u0644\u0648\u0627\u062A\u0633\u0627\u0628 \u0627\u0644\u062E\u0627\u0635 \u0628\u0643" }), _jsxs("p", { className: "text-slate-400 text-xs mt-0.5", children: ["\u0631\u0642\u0645 \u0627\u0644\u0625\u064A\u0635\u0627\u0644: PAY-2025-", String(vouchers.length + 1).padStart(4, '0')] })] })] })) })] }));
-}
-function StatCard({ title, value, icon, color, trend, trendUp, highlight }) {
-    const colorMap = {
-        brand: 'bg-brand-50 text-brand-600',
-        alert: 'bg-alert-50 text-alert-600',
-        financial: 'bg-financial-50 text-financial-600',
-    };
-    return (_jsxs(motion.div, { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, className: `bg-white rounded-2xl p-6 shadow-sm border transition-all hover:shadow-md ${highlight ? 'border-financial-200 ring-2 ring-financial-100' : 'border-slate-100'}`, children: [_jsxs("div", { className: "flex items-start justify-between mb-4", children: [_jsx("div", { className: `w-12 h-12 rounded-xl flex items-center justify-center ${colorMap[color]}`, children: icon }), _jsxs("div", { className: `flex items-center gap-1 text-xs font-semibold ${trendUp ? 'text-financial-600' : 'text-alert-600'}`, children: [trendUp ? _jsx(ArrowUpRight, { className: "w-4 h-4" }) : _jsx(ArrowDownRight, { className: "w-4 h-4" }), trend] })] }), _jsx("p", { className: "text-slate-400 text-sm mb-1", children: title }), _jsx("p", { className: "text-2xl font-bold text-slate-900 font-display", children: value })] }));
-}
-function LedgerItem({ label, value, icon, color }) {
-    return (_jsxs("div", { className: "flex items-center gap-3", children: [_jsx("div", { className: `w-10 h-10 rounded-xl flex items-center justify-center ${color}`, children: icon }), _jsxs("div", { children: [_jsx("p", { className: "text-slate-400 text-xs", children: label }), _jsx("p", { className: "font-bold text-slate-800 text-sm", children: value })] })] }));
-}
-function MiniStat({ icon, label, value, color }) {
-    return (_jsxs("div", { className: "bg-white rounded-xl p-4 shadow-sm border border-slate-100", children: [_jsx("div", { className: `w-10 h-10 rounded-xl flex items-center justify-center ${color} mb-3`, children: icon }), _jsx("p", { className: "text-2xl font-bold text-slate-900 font-display", children: value }), _jsx("p", { className: "text-slate-400 text-xs mt-0.5", children: label })] }));
-}
-function OrderStatusBadge({ status }) {
-    const map = {
-        preparing: { label: 'جاري التجهيز', color: 'bg-alert-100 text-alert-700' },
-        picked_up: { label: 'استلمها المندوب', color: 'bg-brand-100 text-brand-700' },
-        delivered: { label: 'تم التسليم', color: 'bg-financial-100 text-financial-700' },
-        returned: { label: 'مرتجع', color: 'bg-red-100 text-red-700' },
-    };
-    const s = map[status] || map.preparing;
-    return _jsx("span", { className: `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${s.color}`, children: s.label });
-}
-function Modal({ children, onClose }) {
-    return (_jsxs("div", { className: "fixed inset-0 z-50 flex items-center justify-center p-4", children: [_jsx(motion.div, { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, onClick: onClose, className: "absolute inset-0 bg-black/40 backdrop-blur-sm" }), _jsx(motion.div, { initial: { opacity: 0, scale: 0.95 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.95 }, className: "relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 z-10", children: children })] }));
+import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { AlertCircle, CheckCircle2, Clock3, Package, RefreshCw, XCircle } from 'lucide-react';
+import { mapBackendProduct, productsApi } from '@/api/client';
+import { formatNumber } from '@/utils/format';
+
+const statusLabels = {
+  active: 'نشط',
+  pending: 'قيد المراجعة',
+  rejected: 'مرفوض',
+  draft: 'مسودة',
+  archived: 'مؤرشف',
+};
+
+export default function DashboardScreen({ vendor, token }) {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(Boolean(vendor.apiCompanyId));
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!vendor.apiCompanyId) {
+      setLoading(false);
+      setError('لم يربط الخادم هذا الحساب بمتجر؛ لا توجد بيانات متجر لعرضها.');
+      return undefined;
+    }
+    let active = true;
+    setLoading(true);
+    setError('');
+    productsApi.list(vendor.apiCompanyId)
+      .then((result) => {
+        if (active) setProducts((result.items || []).map(mapBackendProduct));
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message || 'تعذر جلب بيانات المنتجات من الخادم.');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [vendor.apiCompanyId, token]);
+
+  const counts = useMemo(() => ({
+    total: products.length,
+    active: products.filter((product) => product.status === 'active').length,
+    pending: products.filter((product) => product.status === 'pending').length,
+    rejected: products.filter((product) => product.status === 'rejected').length,
+  }), [products]);
+
+  const stats = [
+    { label: 'إجمالي المنتجات', value: counts.total, icon: Package, style: 'bg-brand-50 text-brand-700' },
+    { label: 'منتجات نشطة', value: counts.active, icon: CheckCircle2, style: 'bg-financial-50 text-financial-700' },
+    { label: 'قيد المراجعة', value: counts.pending, icon: Clock3, style: 'bg-amber-50 text-amber-700' },
+    { label: 'منتجات مرفوضة', value: counts.rejected, icon: XCircle, style: 'bg-red-50 text-red-700' },
+  ];
+
+  return (
+    <div className="space-y-6" dir="rtl">
+      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl bg-gradient-to-l from-[#102a43] via-[#0f766e] to-[#0f3d56] p-6 text-white shadow-lg sm:p-8">
+        <p className="text-sm text-teal-100">لوحة متجر متصلة بالبيانات الفعلية</p>
+        <h1 className="mt-1 text-2xl font-bold">{vendor.storeName || 'اسم المتجر غير متاح'}</h1>
+        {vendor.vendorName && <p className="mt-2 text-sm text-teal-100">{vendor.vendorName}</p>}
+      </motion.section>
+
+      <div role="status" className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">
+        <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-brand-600" />
+        <p>تعرض هذه اللوحة أعداد المنتجات التي جلبها التطبيق مباشرة من الخادم. لا توفر واجهة التاجر حاليًا بيانات المبيعات أو الطلبات أو المحفظة؛ لذلك لن تظهر هنا أرقام تقديرية أو سجلات تجريبية.</p>
+      </div>
+
+      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {loading && <div className="flex items-center gap-2 rounded-xl border border-brand-100 bg-brand-50 p-3 text-sm text-brand-700"><RefreshCw className="h-4 w-4 animate-spin" />جارٍ تحميل بيانات المتجر من الخادم...</div>}
+
+      <section aria-label="ملخص المنتجات الفعلي" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {stats.map(({ label, value, icon: Icon, style }) => (
+          <article key={label} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-xl ${style}`}><Icon className="h-5 w-5" /></div>
+            <p className="text-sm text-slate-500">{label}</p>
+            <p className="mt-1 text-3xl font-bold tabular-nums text-slate-900">{loading || error ? '—' : formatNumber(value)}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-5 py-4"><h2 className="font-bold text-slate-900">منتجات المتجر من الخادم</h2></div>
+        {loading ? <p className="p-6 text-sm text-slate-500">جارٍ تحميل المنتجات...</p> : error ? <p className="p-6 text-sm text-slate-500">لم نعرض بيانات قديمة أو تجريبية؛ أصلح الاتصال بالخادم ثم أعد المحاولة.</p> : products.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">الخادم لا يعيد منتجات لهذا المتجر حاليًا.</p> : (
+          <ul className="divide-y divide-slate-100">
+            {products.slice(0, 5).map((product) => <li key={product.id} className="flex items-center justify-between gap-4 px-5 py-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-50 text-slate-500">{product.image ? <img src={product.image} alt="" className="h-full w-full object-cover" /> : <Package className="h-5 w-5" />}</div>
+                <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-800">{product.name || 'اسم المنتج غير متاح'}</p><p className="mt-0.5 text-xs text-slate-500">{product.category || 'التصنيف غير متاح'}</p></div>
+              </div>
+              <span className="flex-shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{statusLabels[product.status] || 'حالة غير معروفة'}</span>
+            </li>)}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
 }
