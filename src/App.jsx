@@ -114,7 +114,7 @@ function App() {
     {screen === 'DASHBOARD' && <DashboardScreen vendor={vendor} token={authToken} />}
     {screen === 'PRODUCTS' && <ProductsScreen vendor={vendor} token={authToken} />}
     {screen === 'VOUCHERS' && <VouchersScreen vendor={vendor} />}
-    {screen === 'ORDERS' && <OrdersScreen vendor={vendor} />}
+    {screen === 'ORDERS' && <OrdersScreen vendor={vendor} token={authToken} />}
     <div className="sr-only" aria-hidden="true">API: {API_BASE_URL}</div>
   </DashboardLayout>;
 }

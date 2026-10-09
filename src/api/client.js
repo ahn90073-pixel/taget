@@ -65,6 +65,12 @@ export const productsApi = {
   remove: (companyId, productId) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/products/${encodeURIComponent(productId)}`, { method: 'DELETE' }),
 };
 
+export const ordersApi = {
+  list: (companyId, { page = 1, limit = 50, status = '' } = {}) => apiRequest(
+    `/api/companies/${encodeURIComponent(companyId)}/orders?page=${page}&limit=${limit}${status ? `&status=${encodeURIComponent(status)}` : ''}`,
+  ),
+};
+
 export function mapBackendProduct(product) {
   return {
     id: product.id,
