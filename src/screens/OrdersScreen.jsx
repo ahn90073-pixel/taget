@@ -43,7 +43,7 @@ export default function OrdersScreen({ vendor, token }) {
     if (!silent) setRefreshing(true);
     try {
       const result = await ordersApi.list(vendor.apiCompanyId);
-      const nextOrders = result.items || [];
+      const nextOrders = (result.items || []).filter((order) => order.company_id === vendor.apiCompanyId);
       if (!firstLoad.current && nextOrders[0]?.id && nextOrders[0].id !== ordersRef.current[0]?.id) {
         setNewOrder(nextOrders[0]);
       }
