@@ -11,7 +11,8 @@
 - فعّل Google ضمن Firebase Authentication في المشروع `tager-z`.
 - تأكد من وجود Android app بمعرّف الحزمة `com.taget.app` في مشروع Firebase نفسه.
 - أضف بصمات SHA-1 وSHA-256 لشهادة Debug وشهادة Release أو Play App Signing المستخدمة فعليًا، ثم نزّل ملف `google-services.json` المحدّث.
+- عند ظهور `activity is cancelled by the user` بعد اختيار الحساب، تحقق من بصمة SHA-1 للتطبيق المثبّت. APK الاختبار Debug الناتج عن GitHub Actions يستخدم مفتاح Debug مؤقتًا؛ اختبر نسخة Release الموقعة بالمفتاح المسجل في Firebase، أو أضف بصمة Play App Signing إذا كان التوزيع من Google Play.
 - يوجد إعداد Firebase الخاص بتطبيق العميل في `android/app/google-services.json` ضمن المستودع، ويقرأه Gradle مباشرة عند البناء؛ لا حاجة إلى GitHub Actions Secret له.
 - يحتوي الملف على إعدادات Firebase العامة الخاصة بالعميل فقط، وليس مفتاح خدمة أو بيانات اعتماد خاصة. يتحقق سير البناء من المشروع `tager-z` ومعرّف الحزمة `com.taget.app` قبل التجميع.
 
-يُضبط Firebase project ID غير السري على Worker باسم `FIREBASE_PROJECT_ID`. تُطبق Migration `0005_firebase_google_merchant_auth.sql` من سير عمل نشر `tagerbackend` قبل تحديث Worker. لا توجد حاجة لتحديث ملف Android أو إصدار OTA لتطبيق هذا التغيير على شاشة الدخول؛ تسجيل Google native يتطلب تثبيت نسخة Android مبنية بعد إضافة plugin والإعدادات.
+يُضبط Firebase project ID غير السري على Worker باسم `FIREBASE_PROJECT_ID`. تُطبق Migration `0005_firebase_google_merchant_auth.sql` من سير عمل نشر `tagerbackend` قبل تحديث Worker. بعد استبدال `google-services.json` يجب بناء APK جديد وتثبيته؛ لا يحدّث OTA إعداد Google OAuth الأصلي داخل APK. يتحقق سير بناء Android من وجود Android وWeb OAuth clients لتجنب إخراج حزمة إعدادها ناقص.
