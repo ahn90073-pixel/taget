@@ -64,6 +64,7 @@ jobs:
               raise SystemExit(f'google-services.json does not contain com.taget.app: {package_names}')
           project_id = data.get('project_info', {}).get('project_id')
           if project_id != 'manger-301':
+              print(f'Detected Firebase project_id (public identifier): {project_id}')
               raise SystemExit('google-services.json project_id must match the backend Firebase project configured for this app.')
           print('Firebase google-services.json validated for com.taget.app and the backend project.')
           PY
