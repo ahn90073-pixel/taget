@@ -13,7 +13,8 @@ dist-ssr
 /.gradle
 android/.gradle
 android/keystore.properties
-android/app/google-services.json
+# Firebase Android client configuration (not a service-account secret)
+!android/app/google-services.json
 *.keystore
 *.jks
 ios/App/DerivedData

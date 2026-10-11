@@ -46,15 +46,12 @@ jobs:
       - name: Install web dependencies
         run: npm ci
 
-      - name: Configure Firebase Cloud Messaging
-        env:
-          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+      - name: Validate Firebase client configuration
         run: |
-          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
-            echo 'GOOGLE_SERVICES_JSON_BASE64 is required for Firebase notifications.'
+          if [ ! -s android/app/google-services.json ]; then
+            echo 'android/app/google-services.json is required for Firebase.'
             exit 1
           fi
-          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
           python3 - <<'PY'
           import json
           from pathlib import Path
