@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { recordAppLaunch } from '@/plugins/nativeStorage';
 import { checkForOtaUpdate } from '@/utils/liveUpdates';
 import { initializePushNotifications } from '@/utils/pushNotifications';
+import { signInWithGoogle, signOutGoogle } from '@/lib/firebaseAuth';
 import { API_BASE_URL, authApi, makeCompanySlug, sessionStore } from '@/api/client';
 import RegisterScreen from '@/screens/RegisterScreen';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -72,6 +73,13 @@ function App() {
     await acceptSession(result.token, result.user, mode === 'register' ? storeName : '');
   };
 
+  const handleGoogleAuthComplete = async ({ storeName, phone }) => {
+    const idToken = await signInWithGoogle();
+    const result = await authApi.google({ idToken, storeName, phone });
+    if (!result?.token || !result?.user) throw new Error('استجابة المصادقة لا تحتوي على بيانات المستخدم أو رمز الجلسة.');
+    await acceptSession(result.token, result.user, storeName || '');
+  };
+
   useEffect(() => {
     recordAppLaunch().catch(() => {});
     initializePushNotifications().catch(() => {});
@@ -104,12 +112,13 @@ function App() {
 
   const handleLogout = () => {
     sessionStore.clear();
+    signOutGoogle().catch((error) => console.warn('Firebase sign-out failed', error));
     setAuthToken(null);
     setVendor(null);
     setScreen('DASHBOARD');
   };
 
-  if (!vendor || !authToken) return <RegisterScreen onAuthComplete={handleAuthComplete} />;
+  if (!vendor || !authToken) return <RegisterScreen onAuthComplete={handleAuthComplete} onGoogleAuthComplete={handleGoogleAuthComplete} />;
   return <DashboardLayout currentScreen={screen} onNavigate={setScreen} vendor={vendor} onLogout={handleLogout} otaStatus={otaStatus} onOtaRefresh={runOtaCheck} otaRefreshing={otaRefreshing}>
     {screen === 'DASHBOARD' && <DashboardScreen vendor={vendor} token={authToken} />}
     {screen === 'PRODUCTS' && <ProductsScreen vendor={vendor} token={authToken} />}

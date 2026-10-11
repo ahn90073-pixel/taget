@@ -10,6 +10,10 @@
       "autoBlockRolledBackBundles": true,
       "autoDeleteBundles": true,
       "readyTimeout": 10000
+    },
+    "FirebaseAuthentication": {
+      "skipNativeAuth": false,
+      "providers": ["google.com"]
     }
   }
 }
