@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { isAndroidNative, isGoogleNativeAuthAvailable } from '@/lib/firebaseAuth';
 
-export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete }) {
+export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, onGoogleAuthRestart }) {
   const androidApp = isAndroidNative();
   const googleNative = isGoogleNativeAuthAvailable();
   const [mode, setMode] = useState(() => androidApp && !googleNative ? 'login' : 'register');
@@ -24,6 +24,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete })
   const [storeName, setStoreName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [needsCompanyName, setNeedsCompanyName] = useState(false);
   const isLogin = mode === 'login';
 
   const handleSubmit = async (event) => {
@@ -44,7 +45,27 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete })
         });
       }
     } catch (err) {
-      setError(err.message || 'تعذر إتمام العملية. حاول مرة أخرى.');
+      if (googleNative && err?.code === 'GOOGLE_STORE_NAME_REQUIRED') {
+        setNeedsCompanyName(true);
+        setError('');
+      } else {
+        setError(err.message || 'تعذر إتمام العملية. حاول مرة أخرى.');
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleGoogleAuthRestart = async () => {
+    setError('');
+    setBusy(true);
+    try {
+      await onGoogleAuthRestart?.();
+      setStoreName('');
+      setPhone('');
+      setNeedsCompanyName(false);
+    } catch (err) {
+      setError(err.message || 'تعذر تغيير حساب Google. حاول مرة أخرى.');
     } finally {
       setBusy(false);
     }
@@ -103,11 +124,15 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete })
               <div className="mb-7 space-y-2.5">
                 <p className="text-xs font-bold tracking-wide text-brand-700">مرحبًا بك في متجرك</p>
                 <h2 className="font-display text-2xl font-bold text-slate-950 sm:text-[1.75rem]">
-                  {isLogin ? 'تسجيل الدخول' : 'إنشاء حساب تاجر'}
+                  {googleNative
+                    ? needsCompanyName ? 'إكمال إنشاء حساب التاجر' : 'الدخول إلى متجرك'
+                    : isLogin ? 'تسجيل الدخول' : 'إنشاء حساب تاجر'}
                 </h2>
                 <p className="max-w-sm text-sm leading-7 text-slate-500">
                   {googleNative
-                    ? 'استخدم حساب Google للوصول بأمان إلى لوحة متجرك.'
+                    ? needsCompanyName
+                      ? 'هذا حساب جديد. اكتب اسم الشركة مرة واحدة لإكمال إنشاء مساحة متجرك.'
+                      : 'تابع بحساب Google؛ إذا كان مرتبطًا بمتجر سندخلك مباشرة، وإذا كان جديدًا سنطلب اسم الشركة فقط.'
                     : isLogin
                       ? 'أدخل بيانات حسابك للمتابعة إلى متجرك.'
                       : 'أكمل بياناتك للبدء في إدارة متجرك من مكان واحد.'}
@@ -117,8 +142,11 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete })
               <form onSubmit={handleSubmit} className="space-y-5">
                 {googleNative ? (
                   <>
-                    {!isLogin && (
+                    {needsCompanyName ? (
                       <>
+                        <div className="rounded-2xl border border-brand-100 bg-brand-50/70 px-4 py-3.5 text-sm leading-6 text-brand-900">
+                          لم يُعثر على حساب تاجر لهذا البريد بعد. أدخل اسم الشركة لإكمال التسجيل.
+                        </div>
                         <Field
                           icon={<Phone className="h-5 w-5" />}
                           label="رقم الهاتف (اختياري)"
@@ -130,16 +158,21 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete })
                         />
                         <Field
                           icon={<Building2 className="h-5 w-5" />}
-                          label="اسم المتجر"
+                          label="اسم الشركة أو المتجر"
                           value={storeName}
                           onChange={setStoreName}
-                          placeholder="اسم الشركة أو المتجر"
+                          placeholder="اكتب اسم شركتك أو متجرك"
                           className={inputClass}
                           minLength={2}
                           maxLength={120}
                           required
                         />
                       </>
+                    ) : (
+                      <div className="flex items-start gap-2.5 rounded-2xl bg-slate-50 px-4 py-3.5 text-xs leading-6 text-slate-500">
+                        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                        <p>سنتحقق من حسابك بأمان؛ الحساب المرتبط يدخل مباشرة، والحساب الجديد يطلب اسم الشركة فقط.</p>
+                      </div>
                     )}
 
                     <button
@@ -150,20 +183,26 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete })
                       {busy ? (
                         <>
                           <Loader2 className="h-5 w-5 animate-spin text-brand-600" aria-hidden="true" />
-                          <span>جارٍ التحقق من Google...</span>
+                          <span>{needsCompanyName ? 'جارٍ إنشاء حسابك...' : 'جارٍ التحقق من Google...'}</span>
                         </>
                       ) : (
                         <>
                           <GoogleMark className="h-6 w-6 shrink-0" />
-                          <span>{isLogin ? 'المتابعة باستخدام Google' : 'إنشاء الحساب باستخدام Google'}</span>
+                          <span>{needsCompanyName ? 'إنشاء الحساب والمتابعة' : 'المتابعة باستخدام Google'}</span>
                         </>
                       )}
                     </button>
 
-                    <div className="flex items-start gap-2.5 rounded-2xl bg-slate-50 px-4 py-3.5 text-xs leading-6 text-slate-500">
-                      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
-                      <p>تسجيل آمن. عند أول مرة، سيتم إنشاء مساحة مستقلة لمتجرك.</p>
-                    </div>
+                    {needsCompanyName && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={handleGoogleAuthRestart}
+                        className="w-full py-1 text-sm font-semibold text-slate-500 transition hover:text-brand-700 disabled:opacity-50"
+                      >
+                        استخدام حساب Google آخر
+                      </button>
+                    )}
                   </>
                 ) : (
                   <>

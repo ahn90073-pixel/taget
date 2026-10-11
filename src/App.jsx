@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { recordAppLaunch } from '@/plugins/nativeStorage';
 import { checkForOtaUpdate } from '@/utils/liveUpdates';
 import { initializePushNotifications } from '@/utils/pushNotifications';
@@ -31,6 +31,7 @@ function App() {
   const [screen, setScreen] = useState('DASHBOARD');
   const [vendor, setVendor] = useState(null);
   const [authToken, setAuthToken] = useState(sessionStore.getToken());
+  const pendingGoogleIdToken = useRef(null);
 
   const runOtaCheck = useCallback(async () => {
     setOtaRefreshing(true);
@@ -74,11 +75,27 @@ function App() {
     await acceptSession(result.token, result.user, mode === 'register' ? storeName : '');
   };
 
-  const handleGoogleAuthComplete = async ({ storeName, phone }) => {
-    const idToken = await signInWithGoogle();
-    const result = await authApi.google({ idToken, storeName, phone });
-    if (!result?.token || !result?.user) throw new Error('استجابة المصادقة لا تحتوي على بيانات المستخدم أو رمز الجلسة.');
-    await acceptSession(result.token, result.user, storeName || '');
+  const handleGoogleAuthComplete = async ({ storeName = '', phone = '' }) => {
+    const idToken = pendingGoogleIdToken.current || await signInWithGoogle();
+    try {
+      const result = await authApi.google({ idToken, storeName, phone });
+      if (!result?.token || !result?.user) throw new Error('استجابة المصادقة لا تحتوي على بيانات المستخدم أو رمز الجلسة.');
+      pendingGoogleIdToken.current = null;
+      await acceptSession(result.token, result.user, storeName || '');
+    } catch (error) {
+      if (error.status === 400 && error.message.includes('أدخل اسم المتجر')) {
+        pendingGoogleIdToken.current = idToken;
+        error.code = 'GOOGLE_STORE_NAME_REQUIRED';
+      } else {
+        pendingGoogleIdToken.current = null;
+      }
+      throw error;
+    }
+  };
+
+  const handleGoogleAuthRestart = async () => {
+    pendingGoogleIdToken.current = null;
+    await signOutGoogle();
   };
 
   useEffect(() => {
@@ -119,7 +136,7 @@ function App() {
     setScreen('DASHBOARD');
   };
 
-  if (!vendor || !authToken) return <RegisterScreen onAuthComplete={handleAuthComplete} onGoogleAuthComplete={handleGoogleAuthComplete} />;
+  if (!vendor || !authToken) return <RegisterScreen onAuthComplete={handleAuthComplete} onGoogleAuthComplete={handleGoogleAuthComplete} onGoogleAuthRestart={handleGoogleAuthRestart} />;
   return <DashboardLayout currentScreen={screen} onNavigate={setScreen} vendor={vendor} onLogout={handleLogout} otaStatus={otaStatus} onOtaRefresh={runOtaCheck} otaRefreshing={otaRefreshing}>
     {screen === 'DASHBOARD' && <DashboardScreen vendor={vendor} token={authToken} />}
     {screen === 'PRODUCTS' && <ProductsScreen vendor={vendor} token={authToken} />}

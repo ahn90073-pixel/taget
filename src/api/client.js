@@ -45,7 +45,10 @@ export async function apiRequest(path, { method = 'GET', body, token = sessionSt
     }
     const message = payload.message || `حدث خطأ في الاتصال (${response.status})`;
     const fields = payload.errors?.map?.((item) => item.message).filter(Boolean).join('، ');
-    throw new Error(fields ? `${message}: ${fields}` : message);
+    const error = new Error(fields ? `${message}: ${fields}` : message);
+    error.status = response.status;
+    error.code = payload.code || null;
+    throw error;
   }
   return payload.data ?? payload;
 }
