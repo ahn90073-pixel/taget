@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "726409399757",
+    "project_id": "tager-z",
+    "storage_bucket": "tager-z.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:726409399757:android:312e83d3a8c70e34aac884",
+        "android_client_info": {
+          "package_name": "com.taget.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATeO_Vf_uydlpNA0yWArJZi6NGxtPwNEQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

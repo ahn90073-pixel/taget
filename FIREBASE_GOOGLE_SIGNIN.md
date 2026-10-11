@@ -11,7 +11,7 @@
 - فعّل Google ضمن Firebase Authentication في المشروع `tager-z`.
 - تأكد من وجود Android app بمعرّف الحزمة `com.taget.app` في مشروع Firebase نفسه.
 - أضف بصمات SHA-1 وSHA-256 لشهادة Debug وشهادة Release أو Play App Signing المستخدمة فعليًا، ثم نزّل ملف `google-services.json` المحدّث.
-- يقرأ بناء Android الملف من سرّ GitHub Actions `GOOGLE_SERVICES_JSON_BASE64` الموجود في إعدادات مستودع `taget`. لا تضع الملف أو بياناته في Git.
-- يتحقق بناء Android مسبقًا من أن الملف يحتوي على `com.taget.app`.
+- يوجد إعداد Firebase الخاص بتطبيق العميل في `android/app/google-services.json` ضمن المستودع، ويقرأه Gradle مباشرة عند البناء؛ لا حاجة إلى GitHub Actions Secret له.
+- يحتوي الملف على إعدادات Firebase العامة الخاصة بالعميل فقط، وليس مفتاح خدمة أو بيانات اعتماد خاصة. يتحقق سير البناء من المشروع `tager-z` ومعرّف الحزمة `com.taget.app` قبل التجميع.
 
 يُضبط Firebase project ID غير السري على Worker باسم `FIREBASE_PROJECT_ID`. تُطبق Migration `0005_firebase_google_merchant_auth.sql` من سير عمل نشر `tagerbackend` قبل تحديث Worker. لا توجد حاجة لتحديث ملف Android أو إصدار OTA لتطبيق هذا التغيير على شاشة الدخول؛ تسجيل Google native يتطلب تثبيت نسخة Android مبنية بعد إضافة plugin والإعدادات.
