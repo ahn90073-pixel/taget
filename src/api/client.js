@@ -53,6 +53,7 @@ export async function apiRequest(path, { method = 'GET', body, token = sessionSt
 export const authApi = {
   register: (data) => apiRequest('/api/auth/register', { method: 'POST', body: data, token: null }),
   login: (data) => apiRequest('/api/auth/login', { method: 'POST', body: data, token: null }),
+  google: (data) => apiRequest('/api/auth/google', { method: 'POST', body: data, token: null }),
   me: () => apiRequest('/api/auth/me'),
   companies: () => apiRequest('/api/companies'),
   createCompany: (data) => apiRequest('/api/companies', { method: 'POST', body: data }),

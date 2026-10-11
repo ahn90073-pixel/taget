@@ -62,7 +62,10 @@ jobs:
           package_names = [c.get('client_info', {}).get('android_client_info', {}).get('package_name') for c in data.get('client', [])]
           if 'com.taget.app' not in package_names:
               raise SystemExit(f'google-services.json does not contain com.taget.app: {package_names}')
-          print('Firebase google-services.json validated for com.taget.app')
+          project_id = data.get('project_info', {}).get('project_id')
+          if project_id != 'manger-301':
+              raise SystemExit('google-services.json project_id must match the backend Firebase project configured for this app.')
+          print('Firebase google-services.json validated for com.taget.app and the backend project.')
           PY
 
       - name: Build web app and sync Capacitor
