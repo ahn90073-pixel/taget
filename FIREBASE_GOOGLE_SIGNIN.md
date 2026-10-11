@@ -8,7 +8,7 @@
 
 ## إعداد Firebase
 
-- فعّل Google ضمن Firebase Authentication في المشروع `manger-301`.
+- فعّل Google ضمن Firebase Authentication في المشروع `tager-z`.
 - تأكد من وجود Android app بمعرّف الحزمة `com.taget.app` في مشروع Firebase نفسه.
 - أضف بصمات SHA-1 وSHA-256 لشهادة Debug وشهادة Release أو Play App Signing المستخدمة فعليًا، ثم نزّل ملف `google-services.json` المحدّث.
 - يقرأ بناء Android الملف من سرّ GitHub Actions `GOOGLE_SERVICES_JSON_BASE64` الموجود في إعدادات مستودع `taget`. لا تضع الملف أو بياناته في Git.
