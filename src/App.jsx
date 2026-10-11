@@ -44,6 +44,8 @@ function App() {
   }, []);
 
   const acceptSession = useCallback(async (token, user, requestedStoreName = '') => {
+    // The company endpoints require this Bearer token.
+    sessionStore.setToken(token);
     let companies = await authApi.companies();
     if (!Array.isArray(companies)) companies = companies?.items || [];
     let company = companies[0];
@@ -58,7 +60,6 @@ function App() {
     if (!company?.id) {
       throw new Error('لم يعثر الخادم على متجر مرتبط بهذا الحساب. لم ننشئ بيانات متجر افتراضية؛ تواصل مع إدارة المنصة لربط المتجر بحسابك.');
     }
-    sessionStore.setToken(token);
     setAuthToken(token);
     sessionStore.setCompany(company);
     setVendor(companyToVendor(company, user));
