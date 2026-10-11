@@ -63,7 +63,13 @@ jobs:
           if project_id != 'tager-z':
               print(f'Detected Firebase project_id (public identifier): {project_id}')
               raise SystemExit('google-services.json project_id must match the backend Firebase project configured for this app.')
-          print('Firebase google-services.json validated for com.taget.app and the backend project.')
+          client = next((c for c in data.get('client', []) if c.get('client_info', {}).get('android_client_info', {}).get('package_name') == 'com.taget.app'), None)
+          oauth_clients = client.get('oauth_client', []) if client else []
+          has_android_oauth = any(o.get('client_type') == 1 and o.get('android_info', {}).get('package_name') == 'com.taget.app' and o.get('android_info', {}).get('certificate_hash') for o in oauth_clients)
+          has_web_oauth = any(o.get('client_type') == 3 and o.get('client_id') for o in oauth_clients)
+          if not has_android_oauth or not has_web_oauth:
+              raise SystemExit('google-services.json must include Android and Web OAuth clients for Google Sign-In.')
+          print('Firebase google-services.json validated for com.taget.app, the backend project, and Google OAuth clients.')
           PY
 
       - name: Build web app and sync Capacitor

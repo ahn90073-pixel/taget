@@ -54,7 +54,7 @@ ota-manifest.json
 - تعديلات `src/` وملفات الواجهة: تُنشر OTA فقط، ولا تُنشئ APK/AAB أو IPA جديدًا.
 - تعديلات Kotlin/Swift أو إعدادات Capacitor: تُشغّل بناء Android/iOS جديدًا لأنها تحتاج كودًا أصليًا جديدًا.
 
-لذلك تظل نسخة التطبيق المثبتة كما هي، مثلًا `1.0.0`، بينما يتغير `bundleId` الداخلي للواجهة مع كل إصدار OTA. لا تغيّر `versionCode` أو `CFBundleShortVersionString` عند تعديل الواجهة فقط.
+يستخرج سير OTA `nativeVersion` من `versionName` في إعداد Android، ويتحقق التطبيق من نسخته المثبتة فعليًا قبل تنزيل الحزمة. عند تغيير الكود الأصلي، ارفع `versionCode` و`versionName` وأصدر APK/AAB جديدًا؛ أما تعديلات الواجهة فقط فلا تتطلب تغيير رقم الإصدار الأصلي.
 
 يشترط أن يكون التطبيق الأصلي قد بُني بعد دمج Live Update؛ النسخ القديمة التي لا تحتوي Plugin التحديث لن تستطيع تطبيق حزمة OTA.
 
@@ -71,7 +71,7 @@ ota-manifest.json
 رابط OTA المضمّن حاليًا هو:
 
 ```text
-https://github.com/zazotona301-oss/taget/releases/download/ota-latest/ota-manifest.json
+https://github.com/ahn90073-pixel/taget/releases/download/ota-latest/ota-manifest.json
 ```
 
 يمكن تغييره بدون تعديل الكود عبر متغير البناء:

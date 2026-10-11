@@ -40,9 +40,13 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           COMMIT_SHA: ${{ github.sha }}
           RUN_ID: ${{ github.run_id }}
-          NATIVE_APP_VERSION: '1.1.5'
         run: |
           mkdir -p ota-output
+          NATIVE_APP_VERSION="$(sed -n 's/^[[:space:]]*versionName[[:space:]]*"\([^"]*\)".*/\1/p' android/app/build.gradle | head -n 1)"
+          if [ -z "$NATIVE_APP_VERSION" ]; then
+            echo 'Could not determine Android versionName for OTA compatibility.' >&2
+            exit 1
+          fi
           (cd dist && zip -qr ../ota-output/ota-bundle.zip .)
           BUNDLE_ID="web-${COMMIT_SHA}-${RUN_ID}"
           BUNDLE_VERSION="ota-${COMMIT_SHA:0:7}"
