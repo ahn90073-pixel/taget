@@ -1,10 +1,16 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { LiveUpdate } from '@capawesome/capacitor-live-update';
 
 const DEFAULT_MANIFEST_URL =
   'https://github.com/ahn90073-pixel/taget/releases/download/ota-latest/ota-manifest.json';
 const manifestUrl = import.meta.env.VITE_OTA_MANIFEST_URL || DEFAULT_MANIFEST_URL;
-const nativeAppVersion = import.meta.env.VITE_NATIVE_APP_VERSION || '1.1.3';
+const webNativeVersion = import.meta.env.VITE_NATIVE_APP_VERSION || 'web';
+
+async function getNativeAppVersion() {
+  const appInfo = await App.getInfo();
+  return appInfo.version;
+}
 
 async function fetchManifest() {
   const url = `${manifestUrl}?t=${Date.now()}`;
@@ -34,10 +40,12 @@ export async function checkForOtaUpdate({ onStatus } = {}) {
   if (!Capacitor.isNativePlatform()) {
     report('web', {
       message: 'التحديث الهوائي يعمل داخل تطبيق الهاتف',
-      nativeVersion: nativeAppVersion,
+      nativeVersion: webNativeVersion,
     });
-    return { available: false, reason: 'web', nativeVersion: nativeAppVersion };
+    return { available: false, reason: 'web', nativeVersion: webNativeVersion };
   }
+
+  const nativeAppVersion = await getNativeAppVersion();
 
   report('checking', {
     message: 'جاري البحث عن آخر إصدار متوافق...',
