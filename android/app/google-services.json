@@ -12,7 +12,20 @@
           "package_name": "com.taget.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "726409399757-veu9c40cutpa3sqm56cio61argtjk7lg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.taget.app",
+            "certificate_hash": "e37472c4cd0db0e3769e754cdbde5ae38633c756"
+          }
+        },
+        {
+          "client_id": "726409399757-2hfu73me7cc3v4j7s4jvc8v459ttucn3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyATeO_Vf_uydlpNA0yWArJZi6NGxtPwNEQ"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "726409399757-2hfu73me7cc3v4j7s4jvc8v459ttucn3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
