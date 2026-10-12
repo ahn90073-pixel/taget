@@ -193,7 +193,7 @@ export default function CompanyProfileScreen({ companyId, vendor, profile, loadi
         </Section>
 
         <Section title="المستندات المطلوبة" icon={<Upload className="h-5 w-5" />}>
-          <p className="mb-4 text-xs leading-6 text-slate-500">الملفات تحفظ في مخزن خاص غير عام. الأنواع المقبولة PDF وJPG وPNG، بحد أقصى 10 ميجابايت للملف.</p>
+          <p className="mb-4 text-xs leading-6 text-slate-500">الملفات تحفظ في Cloudflare KV ولا تُعرض للعامة. الأنواع المقبولة PDF وJPG وPNG، بحد أقصى 10 ميجابايت للملف. قد يستغرق ظهور الملف في مناطق Cloudflare الأخرى دقيقة أو أكثر.</p>
           <div className="space-y-3">
             {documentTypes.map(({ key, label, icon: Icon }) => {
               const document = documentByType.get(key);
