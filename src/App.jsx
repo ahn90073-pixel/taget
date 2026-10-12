@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { App as CapacitorApp } from '@capacitor/app';
+import { LoaderCircle, RefreshCw } from 'lucide-react';
 import { recordAppLaunch } from '@/plugins/nativeStorage';
 import { checkForOtaUpdate } from '@/utils/liveUpdates';
 import { initializePushNotifications } from '@/utils/pushNotifications';
@@ -27,17 +29,42 @@ function companyToVendor(company, user) {
   };
 }
 
+function SessionRestoreScreen({ loading, error, onRetry, onUseAnotherAccount }) {
+  return (
+    <main dir="rtl" className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 text-center shadow-lg">
+        {loading ? <>
+          <LoaderCircle size={28} className="mx-auto animate-spin text-primary-600" />
+          <p className="mt-4 font-semibold text-slate-800">جارٍ استعادة جلسة الدخول...</p>
+        </> : <>
+          <h1 className="text-lg font-bold text-slate-900">تعذر استعادة الجلسة الآن</h1>
+          <p role="alert" className="mt-3 text-sm leading-6 text-slate-600">{error}</p>
+          <button type="button" onClick={onRetry} className="btn-primary mt-5 w-full">
+            <RefreshCw size={17} /> إعادة المحاولة
+          </button>
+          <button type="button" onClick={onUseAnotherAccount} className="mt-3 text-sm font-semibold text-slate-500 underline">
+            تسجيل الدخول بحساب آخر
+          </button>
+        </>}
+      </section>
+    </main>
+  );
+}
+
 function App() {
   const [otaStatus, setOtaStatus] = useState({ status: 'checking', message: 'جاري تجهيز فحص التحديث الهوائي...' });
   const [otaRefreshing, setOtaRefreshing] = useState(false);
   const [screen, setScreen] = useState('DASHBOARD');
   const [vendor, setVendor] = useState(null);
   const [authToken, setAuthToken] = useState(sessionStore.getToken());
+  const [isRestoringSession, setIsRestoringSession] = useState(() => Boolean(sessionStore.getToken()));
+  const [sessionRestoreError, setSessionRestoreError] = useState('');
   const [companyProfile, setCompanyProfile] = useState(null);
   const [profileRevision, setProfileRevision] = useState(0);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileLoadError, setProfileLoadError] = useState('');
   const pendingGoogleIdToken = useRef(null);
+  const restoreInFlight = useRef(false);
 
   const runOtaCheck = useCallback(async () => {
     setOtaRefreshing(true);
@@ -68,10 +95,42 @@ function App() {
       throw new Error('لم يعثر الخادم على متجر مرتبط بهذا الحساب. لم ننشئ بيانات متجر افتراضية؛ تواصل مع إدارة المنصة لربط المتجر بحسابك.');
     }
     setAuthToken(token);
+    setSessionRestoreError('');
+    setIsRestoringSession(false);
     sessionStore.setCompany(company);
     setVendor(companyToVendor(company, user));
     setScreen('DASHBOARD');
   }, []);
+
+  const restoreSession = useCallback(async () => {
+    if (restoreInFlight.current) return;
+    const token = sessionStore.getToken();
+    if (!token) {
+      setIsRestoringSession(false);
+      return;
+    }
+
+    restoreInFlight.current = true;
+    setIsRestoringSession(true);
+    setSessionRestoreError('');
+    try {
+      const user = await authApi.me();
+      await acceptSession(token, user, '');
+    } catch (error) {
+      console.warn('Saved session could not be restored', error);
+      if (error?.status === 401 || error?.status === 404) {
+        // Only discard a session when the server explicitly rejects it.
+        sessionStore.clear();
+        setAuthToken(null);
+      } else {
+        // Offline/server errors are temporary; keep the saved token and allow retry.
+        setSessionRestoreError('تحقق من اتصال الإنترنت ثم أعد المحاولة. احتفظنا ببيانات الدخول ولم نسجّل خروجك.');
+      }
+    } finally {
+      restoreInFlight.current = false;
+      setIsRestoringSession(false);
+    }
+  }, [acceptSession]);
 
   const handleAuthComplete = async ({ mode, vendorName, email, phone, password, storeName }) => {
     const result = mode === 'register'
@@ -138,20 +197,24 @@ function App() {
     recordAppLaunch().catch(() => {});
     initializePushNotifications().catch(() => {});
     runOtaCheck();
-    const restore = async () => {
-      const token = sessionStore.getToken();
-      if (!token) return;
-      try {
-        const user = await authApi.me();
-        await acceptSession(token, user, '');
-      } catch (error) {
-        console.warn('Saved session could not be restored', error);
-        sessionStore.clear();
-        setAuthToken(null);
-      }
+    void restoreSession();
+  }, [restoreSession, runOtaCheck]);
+
+  useEffect(() => {
+    if (vendor || !sessionStore.getToken()) return undefined;
+    let listener;
+    let active = true;
+    CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive && sessionStore.getToken()) void restoreSession();
+    }).then((handle) => {
+      if (active) listener = handle;
+      else handle.remove();
+    }).catch((error) => console.warn('Could not watch Android app resume state', error));
+    return () => {
+      active = false;
+      listener?.remove();
     };
-    restore();
-  }, [acceptSession, runOtaCheck]);
+  }, [restoreSession, vendor]);
 
   useEffect(() => {
     if (!vendor?.apiCompanyId || !authToken || !['owner', 'admin'].includes(vendor.companyRole)) {
@@ -184,6 +247,8 @@ function App() {
     setScreen('DASHBOARD');
   };
 
+  if (authToken && !vendor && isRestoringSession) return <SessionRestoreScreen loading />;
+  if (authToken && !vendor && sessionRestoreError) return <SessionRestoreScreen error={sessionRestoreError} onRetry={restoreSession} onUseAnotherAccount={() => { sessionStore.clear(); setAuthToken(null); setSessionRestoreError(''); }} />;
   if (!vendor || !authToken) return <RegisterScreen onAuthComplete={handleAuthComplete} onGoogleAuthComplete={handleGoogleAuthComplete} onGoogleAuthRestart={handleGoogleAuthRestart} />;
   return <DashboardLayout currentScreen={screen} onNavigate={setScreen} vendor={vendor} onLogout={handleLogout} otaStatus={otaStatus} onOtaRefresh={runOtaCheck} otaRefreshing={otaRefreshing} profileCompletion={companyProfile?.completion || null} profileLoading={profileLoading} profileLoadError={profileLoadError}>
     {screen === 'DASHBOARD' && <DashboardScreen vendor={vendor} token={authToken} />}

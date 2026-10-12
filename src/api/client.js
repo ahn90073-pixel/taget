@@ -42,7 +42,9 @@ export async function apiRequest(path, { method = 'GET', body, token = sessionSt
     if (response.status === 401 && token) {
       sessionStore.clear();
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('tager:auth-expired'));
-      throw new Error('انتهت الجلسة أو لم يعد رمز الدخول صالحًا. سجّل الدخول مرة أخرى.');
+      const error = new Error('انتهت الجلسة أو لم يعد رمز الدخول صالحًا. سجّل الدخول مرة أخرى.');
+      error.status = 401;
+      throw error;
     }
     const message = payload.message || `حدث خطأ في الاتصال (${response.status})`;
     const fields = payload.errors?.map?.((item) => item.message).filter(Boolean).join('، ');
