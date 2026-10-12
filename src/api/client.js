@@ -86,6 +86,12 @@ export const companyProfileApi = {
 export const productsApi = {
   list: (companyId) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/products?limit=100`),
   create: (companyId, data) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/products`, { method: 'POST', body: data }),
+  createWithImages: (companyId, data, files) => {
+    const form = new FormData();
+    form.append('product', JSON.stringify(data));
+    files.forEach((file) => form.append('images', file, file.name));
+    return apiRequest(`/api/companies/${encodeURIComponent(companyId)}/products`, { method: 'POST', body: form });
+  },
   update: (companyId, productId, data) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/products/${encodeURIComponent(productId)}`, { method: 'PUT', body: data }),
   remove: (companyId, productId) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/products/${encodeURIComponent(productId)}`, { method: 'DELETE' }),
 };
@@ -97,6 +103,11 @@ export const ordersApi = {
 };
 
 export function mapBackendProduct(product) {
+  const images = Array.isArray(product.images)
+    ? product.images.map((image, index) => typeof image === 'string'
+      ? { url: image, sortOrder: index }
+      : { ...image, url: image.url || image.image_url || '' }).filter((image) => image.url)
+    : [];
   return {
     id: product.id,
     sku: product.sku,
@@ -105,7 +116,8 @@ export function mapBackendProduct(product) {
     price: product.price == null ? null : Number(product.price),
     stock: product.stock_quantity == null && product.stock == null ? null : Number(product.stock_quantity ?? product.stock),
     weight: product.weight_grams == null ? null : Number(product.weight_grams) / 1000,
-    image: product.metadata?.image || product.image_url || '',
+    images,
+    image: images[0]?.url || product.image_url || product.metadata?.image || '',
     status: product.status || '',
     rejectionReason: product.rejection_reason || product.rejectionReason || '',
   };
