@@ -13,6 +13,7 @@ import ProductsScreen from '@/screens/ProductsScreen';
 import VouchersScreen from '@/screens/VouchersScreen';
 import OrdersScreen from '@/screens/OrdersScreen';
 import CompanyProfileScreen from '@/screens/CompanyProfileScreen';
+import { egyptGovernorates } from '@/data/egyptGovernorates';
 
 function companyToVendor(company, user) {
   return {
@@ -63,6 +64,9 @@ function App() {
   const [profileRevision, setProfileRevision] = useState(0);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileLoadError, setProfileLoadError] = useState('');
+  const [pendingGovernorate, setPendingGovernorate] = useState(null);
+  const [governorateSaving, setGovernorateSaving] = useState(false);
+  const [governorateError, setGovernorateError] = useState('');
   const pendingGoogleIdToken = useRef(null);
   const restoreInFlight = useRef(false);
 
@@ -77,7 +81,7 @@ function App() {
     } finally { setOtaRefreshing(false); }
   }, []);
 
-  const acceptSession = useCallback(async (token, user, requestedStoreName = '') => {
+  const acceptSession = useCallback(async (token, user, requestedStoreName = '', requestedGovernorate = '') => {
     // The company endpoints require this Bearer token.
     sessionStore.setToken(token);
     let companies = await authApi.companies();
@@ -89,11 +93,24 @@ function App() {
         legalName: requestedStoreName,
         displayName: requestedStoreName,
         email: user?.email,
+        governorate: requestedGovernorate,
       });
     }
     if (!company?.id) {
       throw new Error('لم يعثر الخادم على متجر مرتبط بهذا الحساب. لم ننشئ بيانات متجر افتراضية؛ تواصل مع إدارة المنصة لربط المتجر بحسابك.');
     }
+    if (!company.governorate && requestedGovernorate) {
+      company = { ...company, ...(await authApi.setCompanyGovernorate(company.id, requestedGovernorate)) };
+    }
+    if (!company.governorate) {
+      setPendingGovernorate({ token, user, company });
+      setGovernorateError('');
+      setAuthToken(token);
+      setSessionRestoreError('');
+      setIsRestoringSession(false);
+      return;
+    }
+    setPendingGovernorate(null);
     setAuthToken(token);
     setSessionRestoreError('');
     setIsRestoringSession(false);
@@ -132,21 +149,21 @@ function App() {
     }
   }, [acceptSession]);
 
-  const handleAuthComplete = async ({ mode, vendorName, email, phone, password, storeName }) => {
+  const handleAuthComplete = async ({ mode, vendorName, email, phone, password, storeName, governorate }) => {
     const result = mode === 'register'
       ? await authApi.register({ email, password, fullName: vendorName, phone })
       : await authApi.login({ email, password });
     if (!result?.token || !result?.user) throw new Error('استجابة المصادقة لا تحتوي على بيانات المستخدم أو رمز الجلسة.');
-    await acceptSession(result.token, result.user, mode === 'register' ? storeName : '');
+    await acceptSession(result.token, result.user, mode === 'register' ? storeName : '', mode === 'register' ? governorate : '');
   };
 
-  const handleGoogleAuthComplete = async ({ storeName = '', phone = '' }) => {
+  const handleGoogleAuthComplete = async ({ storeName = '', phone = '', governorate = '' }) => {
     const idToken = pendingGoogleIdToken.current || await signInWithGoogle();
     try {
-      const result = await authApi.google({ idToken, storeName, phone });
+      const result = await authApi.google({ idToken, storeName, phone, governorate });
       if (!result?.token || !result?.user) throw new Error('استجابة المصادقة لا تحتوي على بيانات المستخدم أو رمز الجلسة.');
       pendingGoogleIdToken.current = null;
-      await acceptSession(result.token, result.user, storeName || '');
+      await acceptSession(result.token, result.user, storeName || '', governorate || '');
     } catch (error) {
       if (error.status === 400 && error.message.includes('أدخل اسم المتجر')) {
         pendingGoogleIdToken.current = idToken;
@@ -161,6 +178,26 @@ function App() {
   const handleGoogleAuthRestart = async () => {
     pendingGoogleIdToken.current = null;
     await signOutGoogle();
+  };
+
+  const handleGovernorateComplete = async (governorate) => {
+    if (!pendingGovernorate) return;
+    setGovernorateSaving(true);
+    setGovernorateError('');
+    try {
+      const updated = await authApi.setCompanyGovernorate(pendingGovernorate.company.id, governorate);
+      const company = { ...pendingGovernorate.company, ...updated };
+      sessionStore.setCompany(company);
+      setVendor(companyToVendor(company, pendingGovernorate.user));
+      setAuthToken(pendingGovernorate.token);
+      setPendingGovernorate(null);
+      setSessionRestoreError('');
+      setScreen('DASHBOARD');
+    } catch (error) {
+      setGovernorateError(error.message || 'تعذر حفظ المحافظة. حاول مرة أخرى.');
+    } finally {
+      setGovernorateSaving(false);
+    }
   };
 
   const refreshCompanyProfile = useCallback(async () => {
@@ -232,6 +269,7 @@ function App() {
       setAuthToken(null);
       setVendor(null);
       setCompanyProfile(null);
+      setPendingGovernorate(null);
       setScreen('DASHBOARD');
     };
     window.addEventListener('tager:auth-expired', handleExpiredSession);
@@ -244,11 +282,13 @@ function App() {
     setAuthToken(null);
     setVendor(null);
     setCompanyProfile(null);
+    setPendingGovernorate(null);
     setScreen('DASHBOARD');
   };
 
   if (authToken && !vendor && isRestoringSession) return <SessionRestoreScreen loading />;
   if (authToken && !vendor && sessionRestoreError) return <SessionRestoreScreen error={sessionRestoreError} onRetry={restoreSession} onUseAnotherAccount={() => { sessionStore.clear(); setAuthToken(null); setSessionRestoreError(''); }} />;
+  if (authToken && pendingGovernorate) return <GovernorateRequiredScreen saving={governorateSaving} error={governorateError} onSubmit={handleGovernorateComplete} onLogout={handleLogout} />;
   if (!vendor || !authToken) return <RegisterScreen onAuthComplete={handleAuthComplete} onGoogleAuthComplete={handleGoogleAuthComplete} onGoogleAuthRestart={handleGoogleAuthRestart} />;
   return <DashboardLayout currentScreen={screen} onNavigate={setScreen} vendor={vendor} onLogout={handleLogout} otaStatus={otaStatus} onOtaRefresh={runOtaCheck} otaRefreshing={otaRefreshing} profileCompletion={companyProfile?.completion || null} profileLoading={profileLoading} profileLoadError={profileLoadError}>
     {screen === 'DASHBOARD' && <DashboardScreen vendor={vendor} token={authToken} />}
@@ -259,4 +299,35 @@ function App() {
     <div className="sr-only" aria-hidden="true">API: {API_BASE_URL}</div>
   </DashboardLayout>;
 }
+
+function GovernorateRequiredScreen({ saving, error, onSubmit, onLogout }) {
+  const [governorate, setGovernorate] = useState('');
+  const submit = (event) => {
+    event.preventDefault();
+    if (governorate) void onSubmit(governorate);
+  };
+  return (
+    <main dir="rtl" className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-lg">
+        <h1 className="text-lg font-bold text-slate-900">أكمل بيانات موقع المتجر</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-600">اختيار المحافظة مطلوب لربط متجرك بالخدمات الإدارية المناسبة. لن تحتاج إلى إدخالها في كل مرة تسجل فيها الدخول.</p>
+        <form onSubmit={submit} className="mt-5 space-y-4">
+          <label className="block">
+            <span className="mb-2 block text-sm font-semibold text-slate-700">محافظة المتجر (إلزامي)</span>
+            <select required value={governorate} onChange={(event) => setGovernorate(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-100">
+              <option value="">اختر المحافظة</option>
+              {egyptGovernorates.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+          <button type="submit" disabled={saving || !governorate} className="btn-primary w-full disabled:cursor-wait disabled:opacity-60">
+            {saving ? 'جارٍ حفظ المحافظة...' : 'حفظ ومتابعة'}
+          </button>
+        </form>
+        <button type="button" onClick={onLogout} className="mt-4 w-full text-sm font-semibold text-slate-500 underline">تسجيل الخروج</button>
+      </section>
+    </main>
+  );
+}
+
 export default App;

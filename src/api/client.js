@@ -63,6 +63,7 @@ export const authApi = {
   me: () => apiRequest('/api/auth/me'),
   companies: () => apiRequest('/api/companies'),
   createCompany: (data) => apiRequest('/api/companies', { method: 'POST', body: data }),
+  setCompanyGovernorate: (companyId, governorate) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/governorate`, { method: 'PATCH', body: { governorate } }),
 };
 
 export const companyProfileApi = {

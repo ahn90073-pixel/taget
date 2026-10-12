@@ -12,6 +12,7 @@ import {
   User,
 } from 'lucide-react';
 import { isAndroidNative, isGoogleNativeAuthAvailable } from '@/lib/firebaseAuth';
+import { egyptGovernorates } from '@/data/egyptGovernorates';
 
 export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, onGoogleAuthRestart }) {
   const androidApp = isAndroidNative();
@@ -22,6 +23,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [storeName, setStoreName] = useState('');
+  const [governorate, setGovernorate] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [needsCompanyName, setNeedsCompanyName] = useState(false);
@@ -33,7 +35,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
     setBusy(true);
     try {
       if (googleNative) {
-        await onGoogleAuthComplete({ mode, phone: phone.trim(), storeName: storeName.trim() });
+        await onGoogleAuthComplete({ mode, phone: phone.trim(), storeName: storeName.trim(), governorate });
       } else {
         await onAuthComplete({
           mode,
@@ -42,6 +44,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
           phone: phone.trim(),
           password,
           storeName: storeName.trim(),
+          governorate,
         });
       }
     } catch (err) {
@@ -63,6 +66,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
       await onGoogleAuthRestart?.();
       setStoreName('');
       setPhone('');
+      setGovernorate('');
       setNeedsCompanyName(false);
     } catch (err) {
       setError(err.message || 'تعذر تغيير حساب Google. حاول مرة أخرى.');
@@ -131,8 +135,8 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
                 <p className="max-w-sm text-sm leading-7 text-slate-500">
                   {googleNative
                     ? needsCompanyName
-                      ? 'هذا حساب جديد. اكتب اسم الشركة مرة واحدة لإكمال إنشاء مساحة متجرك.'
-                      : 'تابع بحساب Google؛ إذا كان مرتبطًا بمتجر سندخلك مباشرة، وإذا كان جديدًا سنطلب اسم الشركة فقط.'
+                      ? 'هذا حساب جديد. اكتب اسم المتجر واختر المحافظة لإكمال إنشاء مساحة متجرك.'
+                      : 'تابع بحساب Google؛ إذا كان مرتبطًا بمتجر سندخلك مباشرة، وإذا كان جديدًا سنطلب اسم المتجر والمحافظة.'
                     : isLogin
                       ? 'أدخل بيانات حسابك للمتابعة إلى متجرك.'
                       : 'أكمل بياناتك للبدء في إدارة متجرك من مكان واحد.'}
@@ -145,7 +149,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
                     {needsCompanyName ? (
                       <>
                         <div className="rounded-2xl border border-brand-100 bg-brand-50/70 px-4 py-3.5 text-sm leading-6 text-brand-900">
-                          لم يُعثر على حساب تاجر لهذا البريد بعد. أدخل اسم الشركة لإكمال التسجيل.
+                          لم يُعثر على حساب تاجر لهذا البريد بعد. أدخل اسم المتجر واختر المحافظة لإكمال التسجيل.
                         </div>
                         <Field
                           icon={<Phone className="h-5 w-5" />}
@@ -156,6 +160,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
                           className={inputClass}
                           type="tel"
                         />
+                        <GovernorateField value={governorate} onChange={setGovernorate} />
                         <Field
                           icon={<Building2 className="h-5 w-5" />}
                           label="اسم الشركة أو المتجر"
@@ -171,7 +176,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
                     ) : (
                       <div className="flex items-start gap-2.5 rounded-2xl bg-slate-50 px-4 py-3.5 text-xs leading-6 text-slate-500">
                         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
-                        <p>سنتحقق من حسابك بأمان؛ الحساب المرتبط يدخل مباشرة، والحساب الجديد يطلب اسم الشركة فقط.</p>
+                        <p>سنتحقق من حسابك بأمان؛ الحساب المرتبط يدخل مباشرة، والحساب الجديد يطلب اسم المتجر والمحافظة.</p>
                       </div>
                     )}
 
@@ -216,6 +221,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
                         <Field icon={<User className="h-5 w-5" />} label="اسم التاجر" value={vendorName} onChange={setVendorName} placeholder="الاسم بالكامل" className={inputClass} required />
                         <Field icon={<Phone className="h-5 w-5" />} label="رقم الهاتف" value={phone} onChange={setPhone} placeholder="+20 1XX XXX XXXX" className={inputClass} type="tel" required />
                         <Field icon={<Building2 className="h-5 w-5" />} label="اسم المتجر" value={storeName} onChange={setStoreName} placeholder="اسم الشركة أو المتجر" className={inputClass} required />
+                        <GovernorateField value={governorate} onChange={setGovernorate} />
                       </>
                     )}
                     <Field icon={<Mail className="h-5 w-5" />} label="البريد الإلكتروني" value={email} onChange={setEmail} placeholder="merchant@email.com" className={inputClass} type="email" required />
@@ -309,6 +315,23 @@ function Field({ icon, label, value, onChange, className, ...props }) {
           className={className}
         />
       </span>
+    </label>
+  );
+}
+
+function GovernorateField({ value, onChange }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-semibold text-slate-700">محافظة المتجر (إلزامي)</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3.5 text-base text-slate-900 transition focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand-100"
+        required
+      >
+        <option value="">اختر المحافظة</option>
+        {egyptGovernorates.map((governorate) => <option key={governorate} value={governorate}>{governorate}</option>)}
+      </select>
     </label>
   );
 }
