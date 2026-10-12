@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Package, Edit2, Trash2, X, AlertCircle, CheckCircle2, FileText, Filter, ImagePlus, Upload, Image as ImageIcon } from 'lucide-react';
+import { Plus, Search, Package, Edit2, Trash2, X, AlertCircle, CheckCircle2, FileText, Filter, ImagePlus, Upload } from 'lucide-react';
 import { formatEGP, formatNumber } from '@/utils/format';
 import { mapBackendProduct, productsApi } from '@/api/client';
 import CategoryHeader from '@/components/CategoryHeader';
 
-const emptyProduct = { sku: '', name: '', category: '', price: '', stock: '', weight: '', image: '' };
+const emptyProduct = { sku: '', name: '', category: '', price: '', stock: '', weight: '' };
 const defaultCategoryNames = ['إلكترونيات', 'أزياء', 'مستلزمات منزلية', 'أجهزة كهربائية', 'جمال وعناية', 'رياضة ولياقة', 'كاميرات وتصوير', 'ساعات وإكسسوارات'];
 
 export default function ProductsScreen({ vendor, token }) {
@@ -25,9 +25,17 @@ export default function ProductsScreen({ vendor, token }) {
   const [filterCategory, setFilterCategory] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newProduct, setNewProduct] = useState(emptyProduct);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [imageError, setImageError] = useState('');
   const [selectedRejection, setSelectedRejection] = useState(null);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    const previews = selectedImages.map((file) => URL.createObjectURL(file));
+    setImagePreviews(previews);
+    return () => previews.forEach((url) => URL.revokeObjectURL(url));
+  }, [selectedImages]);
 
   const filtered = products.filter((product) =>
     (String(product?.name ?? '').includes(search) || String(product?.category ?? '').includes(search)) &&
@@ -37,31 +45,39 @@ export default function ProductsScreen({ vendor, token }) {
   const categoryOptions = [...new Set([...defaultCategoryNames, ...categories])];
 
   const handleImageChange = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setImageError('يرجى اختيار ملف صورة صالح.');
-      return;
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!files.length) return;
+    const next = [...selectedImages];
+    let error = '';
+    for (const file of files) {
+      if (next.length >= 2) {
+        error = 'يمكن رفع صورتين كحد أقصى لكل منتج.';
+        break;
+      }
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        error = 'الصيغ المدعومة هي JPG وPNG وWebP.';
+        continue;
+      }
+      if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+        error = 'يجب ألا يتجاوز حجم كل صورة 5 ميجابايت.';
+        continue;
+      }
+      next.push(file);
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setImageError('حجم الصورة يجب ألا يتجاوز 5 ميجابايت.');
-      return;
-    }
-    setImageError('');
-    const reader = new FileReader();
-    reader.onload = () => setNewProduct((current) => ({ ...current, image: reader.result }));
-    reader.readAsDataURL(file);
+    setSelectedImages(next);
+    setImageError(error);
   };
 
-  const removeImage = () => {
-    setNewProduct((current) => ({ ...current, image: '' }));
+  const removeImage = (index) => {
+    setSelectedImages((current) => current.filter((_, imageIndex) => imageIndex !== index));
     setImageError('');
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const closeModal = () => {
     setShowAddModal(false);
     setNewProduct(emptyProduct);
+    setSelectedImages([]);
     setImageError('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -70,13 +86,16 @@ export default function ProductsScreen({ vendor, token }) {
     if (!newProduct.sku.trim() || !newProduct.name.trim() || !newProduct.category.trim() || newProduct.price === '' || saving) return;
     setSaving(true); setApiError('');
     try {
-      const created = await productsApi.create(vendor.apiCompanyId, {
+      const productData = {
         sku: newProduct.sku.trim(), name: newProduct.name.trim(), price: Number(newProduct.price),
         currency: 'EGP',
         ...(newProduct.weight === '' ? {} : { weightGrams: Math.round(Number(newProduct.weight) * 1000) }),
         ...(newProduct.stock === '' ? {} : { stockQuantity: Number(newProduct.stock) }),
-        metadata: { ...(newProduct.category.trim() ? { categoryLabel: newProduct.category.trim() } : {}), image: newProduct.image || '' },
-      });
+        metadata: { ...(newProduct.category.trim() ? { categoryLabel: newProduct.category.trim() } : {}) },
+      };
+      const created = selectedImages.length
+        ? await productsApi.createWithImages(vendor.apiCompanyId, productData, selectedImages)
+        : await productsApi.create(vendor.apiCompanyId, productData);
       setProducts((current) => [mapBackendProduct(created), ...current]);
       closeModal();
     } catch (error) { setApiError(error.message); }
@@ -158,7 +177,29 @@ export default function ProductsScreen({ vendor, token }) {
       <AnimatePresence>{showAddModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeModal} className="absolute inset-0 bg-black/40 backdrop-blur-sm" /><motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl scrollbar-thin">
         <div className="mb-6 flex items-center justify-between"><h3 className="font-display text-xl font-bold text-slate-900">إضافة منتج جديد</h3><button onClick={closeModal} className="text-slate-400 hover:text-slate-600"><X className="h-6 w-6" /></button></div>
         <div className="space-y-4">
-          <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">صورة المنتج <span className="font-normal text-slate-400">(اختياري)</span></label><input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />{newProduct.image ? <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"><img src={newProduct.image} alt="معاينة صورة المنتج" className="h-44 w-full object-cover" /><div className="absolute inset-x-0 bottom-0 flex justify-between bg-black/50 p-3"><button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 text-sm font-semibold text-white"><Upload className="h-4 w-4" />تغيير الصورة</button><button type="button" onClick={removeImage} className="text-sm font-semibold text-red-200 hover:text-white">حذف الصورة</button></div></div> : <button type="button" onClick={() => fileInputRef.current?.click()} className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 py-8 text-slate-500 transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-600"><ImagePlus className="h-8 w-8" /><span className="text-sm font-semibold">اضغط لاختيار صورة المنتج</span><span className="text-xs text-slate-400">PNG أو JPG — حتى 5 ميجابايت</span></button>}{imageError && <p className="mt-2 text-xs font-semibold text-red-600">{imageError}</p>}</div>
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">صور المنتج <span className="font-normal text-slate-400">(اختياري — صورة أو صورتان)</span></label>
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handleImageChange} className="hidden" />
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              {selectedImages.map((file, index) => (
+                <div key={`${file.name}-${file.lastModified}-${index}`} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                  {imagePreviews[index] && <img src={imagePreviews[index]} alt={`معاينة الصورة ${index + 1}`} className="h-32 w-full object-cover" />}
+                  <div className="flex items-center justify-between gap-2 p-2">
+                    <span className="min-w-0 truncate text-xs text-slate-600">{file.name}</span>
+                    <button type="button" aria-label={`حذف الصورة ${index + 1}`} onClick={() => removeImage(index)} className="rounded-lg p-1 text-red-600 hover:bg-red-50"><X className="h-4 w-4" /></button>
+                  </div>
+                </div>
+              ))}
+              {selectedImages.length < 2 && (
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-4 text-slate-500 transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-600">
+                  <ImagePlus className="h-7 w-7" />
+                  <span className="text-center text-sm font-semibold">{selectedImages.length ? 'إضافة صورة أخرى' : 'اختيار صورة للمنتج'}</span>
+                </button>
+              )}
+            </div>
+            <p className="mt-2 text-xs leading-5 text-slate-400">JPG أو PNG أو WebP — 5 ميجابايت كحد أقصى للصورة، وصورتان كحد أقصى للمنتج. تُحفظ الملفات خارج Neon ويُحفظ رابط كل صورة في قاعدة البيانات.</p>
+            {imageError && <p className="mt-2 text-xs font-semibold text-red-600">{imageError}</p>}
+          </div>
           <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">رمز المنتج (SKU)</label><input type="text" value={newProduct.sku} onChange={(event) => setNewProduct({ ...newProduct, sku: event.target.value })} placeholder="أدخل رمز المنتج المعتمد لديك" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div>
           <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">اسم المنتج</label><input type="text" value={newProduct.name} onChange={(event) => setNewProduct({ ...newProduct, name: event.target.value })} placeholder="اكتب اسم المنتج" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" /></div>
           <div><label className="mb-1.5 block text-sm font-semibold text-slate-700">تصنيف المنتج</label><select required value={newProduct.category} onChange={(event) => setNewProduct({ ...newProduct, category: event.target.value })} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"><option value="">اختر تصنيف المنتج</option>{categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}</select><p className="mt-1.5 text-xs text-slate-400">سيظهر هذا التصنيف في قائمة المنتجات ويساعدك على تصفيتها.</p></div>
