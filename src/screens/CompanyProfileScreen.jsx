@@ -85,7 +85,7 @@ export default function CompanyProfileScreen({ companyId, vendor, profile, loadi
     try {
       const updated = await companyProfileApi.uploadDocument(companyId, documentType, file);
       onProfileUpdated(updated);
-      setSuccess('تم حفظ المستند في التخزين الخاص بأمان.');
+      setSuccess('تم حفظ المستند في قاعدة الشركة على Neon. ونسخة KV الإضافية اختيارية.');
     } catch (requestError) {
       setError(requestError.message || 'تعذر رفع المستند. تحقق من اتصال الإنترنت وحاول مرة أخرى.');
     } finally {
@@ -193,7 +193,7 @@ export default function CompanyProfileScreen({ companyId, vendor, profile, loadi
         </Section>
 
         <Section title="المستندات المطلوبة" icon={<Upload className="h-5 w-5" />}>
-          <p className="mb-4 text-xs leading-6 text-slate-500">الملفات تحفظ في Cloudflare KV ولا تُعرض للعامة. الأنواع المقبولة PDF وJPG وPNG، بحد أقصى 10 ميجابايت للملف. قد يستغرق ظهور الملف في مناطق Cloudflare الأخرى دقيقة أو أكثر.</p>
+          <p className="mb-4 text-xs leading-6 text-slate-500">يُحفظ كل مستند أولًا في Neon المرتبط بالشركة، وتحاول الخدمة إنشاء نسخة إضافية في Cloudflare KV. يعتمد التنزيل على Neon ولا يتوقف على توفر نسخة KV. الأنواع المقبولة PDF وJPG وPNG، بحد أقصى 10 ميجابايت للملف.</p>
           <div className="space-y-3">
             {documentTypes.map(({ key, label, icon: Icon }) => {
               const document = documentByType.get(key);
