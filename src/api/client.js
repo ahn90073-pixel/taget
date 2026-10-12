@@ -15,6 +15,7 @@ export const sessionStore = {
 export async function apiRequest(path, { method = 'GET', body, token = sessionStore.getToken() } = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
   let response;
   let payload;
   try {
@@ -22,10 +23,10 @@ export async function apiRequest(path, { method = 'GET', body, token = sessionSt
       method,
       headers: {
         Accept: 'application/json',
-        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...(body === undefined || isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(body === undefined ? {} : { body: isFormData ? body : JSON.stringify(body) }),
       signal: controller.signal,
     });
     payload = await response.json().catch(() => ({}));
@@ -60,6 +61,26 @@ export const authApi = {
   me: () => apiRequest('/api/auth/me'),
   companies: () => apiRequest('/api/companies'),
   createCompany: (data) => apiRequest('/api/companies', { method: 'POST', body: data }),
+};
+
+export const companyProfileApi = {
+  get: (companyId) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/profile`),
+  save: (companyId, data) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/profile`, { method: 'PUT', body: data }),
+  uploadDocument: (companyId, documentType, file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiRequest(`/api/companies/${encodeURIComponent(companyId)}/profile/documents/${encodeURIComponent(documentType)}`, { method: 'POST', body: form });
+  },
+  downloadDocument: async (companyId, documentType) => {
+    const response = await fetch(`${API_BASE_URL}/api/companies/${encodeURIComponent(companyId)}/profile/documents/${encodeURIComponent(documentType)}`, {
+      headers: { Authorization: `Bearer ${sessionStore.getToken() || ''}` },
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.message || 'تعذر تنزيل المستند.');
+    }
+    return response.blob();
+  },
 };
 
 export const productsApi = {

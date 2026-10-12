@@ -3,17 +3,19 @@ import { recordAppLaunch } from '@/plugins/nativeStorage';
 import { checkForOtaUpdate } from '@/utils/liveUpdates';
 import { initializePushNotifications } from '@/utils/pushNotifications';
 import { signInWithGoogle, signOutGoogle } from '@/lib/firebaseAuth';
-import { API_BASE_URL, authApi, makeCompanySlug, sessionStore } from '@/api/client';
+import { API_BASE_URL, authApi, companyProfileApi, makeCompanySlug, sessionStore } from '@/api/client';
 import RegisterScreen from '@/screens/RegisterScreen';
 import DashboardLayout from '@/components/DashboardLayout';
 import DashboardScreen from '@/screens/DashboardScreen';
 import ProductsScreen from '@/screens/ProductsScreen';
 import VouchersScreen from '@/screens/VouchersScreen';
 import OrdersScreen from '@/screens/OrdersScreen';
+import CompanyProfileScreen from '@/screens/CompanyProfileScreen';
 
 function companyToVendor(company, user) {
   return {
     apiCompanyId: company.id,
+    companyRole: company.role || '',
     vendorName: user?.full_name || user?.fullName || '',
     email: user?.email || company.email || '',
     phone: user?.phone || '',
@@ -31,6 +33,10 @@ function App() {
   const [screen, setScreen] = useState('DASHBOARD');
   const [vendor, setVendor] = useState(null);
   const [authToken, setAuthToken] = useState(sessionStore.getToken());
+  const [companyProfile, setCompanyProfile] = useState(null);
+  const [profileRevision, setProfileRevision] = useState(0);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileLoadError, setProfileLoadError] = useState('');
   const pendingGoogleIdToken = useRef(null);
 
   const runOtaCheck = useCallback(async () => {
@@ -98,6 +104,36 @@ function App() {
     await signOutGoogle();
   };
 
+  const refreshCompanyProfile = useCallback(async () => {
+    if (!vendor?.apiCompanyId || !['owner', 'admin'].includes(vendor.companyRole)) return null;
+    setProfileLoading(true);
+    setProfileLoadError('');
+    try {
+      const profile = await companyProfileApi.get(vendor.apiCompanyId);
+      setCompanyProfile(profile);
+      setProfileRevision((revision) => revision + 1);
+      return profile;
+    } catch (error) {
+      setCompanyProfile(null);
+      setProfileLoadError(error.message || 'تعذر التحقق من اكتمال ملف الشركة.');
+      return null;
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [vendor?.apiCompanyId, vendor?.companyRole]);
+
+  const handleProfileUpdated = (profile) => {
+    setCompanyProfile(profile);
+    const company = profile?.company;
+    if (company) {
+      setVendor((current) => current ? {
+        ...current,
+        storeName: company.display_name || company.displayName || company.legal_name || current.storeName,
+        email: company.email || current.email,
+      } : current);
+    }
+  };
+
   useEffect(() => {
     recordAppLaunch().catch(() => {});
     initializePushNotifications().catch(() => {});
@@ -118,10 +154,21 @@ function App() {
   }, [acceptSession, runOtaCheck]);
 
   useEffect(() => {
+    if (!vendor?.apiCompanyId || !authToken || !['owner', 'admin'].includes(vendor.companyRole)) {
+      setCompanyProfile(null);
+      setProfileLoadError('');
+      setProfileLoading(false);
+      return;
+    }
+    refreshCompanyProfile();
+  }, [vendor?.apiCompanyId, vendor?.companyRole, authToken, refreshCompanyProfile]);
+
+  useEffect(() => {
     const handleExpiredSession = () => {
       sessionStore.clear();
       setAuthToken(null);
       setVendor(null);
+      setCompanyProfile(null);
       setScreen('DASHBOARD');
     };
     window.addEventListener('tager:auth-expired', handleExpiredSession);
@@ -133,12 +180,14 @@ function App() {
     signOutGoogle().catch((error) => console.warn('Firebase sign-out failed', error));
     setAuthToken(null);
     setVendor(null);
+    setCompanyProfile(null);
     setScreen('DASHBOARD');
   };
 
   if (!vendor || !authToken) return <RegisterScreen onAuthComplete={handleAuthComplete} onGoogleAuthComplete={handleGoogleAuthComplete} onGoogleAuthRestart={handleGoogleAuthRestart} />;
-  return <DashboardLayout currentScreen={screen} onNavigate={setScreen} vendor={vendor} onLogout={handleLogout} otaStatus={otaStatus} onOtaRefresh={runOtaCheck} otaRefreshing={otaRefreshing}>
+  return <DashboardLayout currentScreen={screen} onNavigate={setScreen} vendor={vendor} onLogout={handleLogout} otaStatus={otaStatus} onOtaRefresh={runOtaCheck} otaRefreshing={otaRefreshing} profileCompletion={companyProfile?.completion || null} profileLoading={profileLoading} profileLoadError={profileLoadError}>
     {screen === 'DASHBOARD' && <DashboardScreen vendor={vendor} token={authToken} />}
+    {screen === 'COMPANY_PROFILE' && <CompanyProfileScreen key={`${vendor.apiCompanyId}:${profileRevision}`} companyId={vendor.apiCompanyId} vendor={vendor} profile={companyProfile} loading={profileLoading} loadError={profileLoadError} onRetry={refreshCompanyProfile} onProfileUpdated={handleProfileUpdated} />}
     {screen === 'PRODUCTS' && <ProductsScreen vendor={vendor} token={authToken} />}
     {screen === 'VOUCHERS' && <VouchersScreen vendor={vendor} />}
     {screen === 'ORDERS' && <OrdersScreen vendor={vendor} token={authToken} />}

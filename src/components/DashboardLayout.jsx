@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Package, Receipt, Truck, Store, Menu, X, LogOut, ShieldCheck, ChevronLeft, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Package, Receipt, Truck, Store, Menu, X, LogOut, ShieldCheck, ChevronLeft, RefreshCw, Building2, AlertTriangle } from 'lucide-react';
 import { exitAndroidApp, registerAndroidBackButton } from '@/utils/androidBackButton';
 
 const navItems = [
   { screen: 'DASHBOARD', label: 'لوحة التحكم', icon: LayoutDashboard },
+  { screen: 'COMPANY_PROFILE', label: 'ملف الشركة', icon: Building2, profile: true },
   { screen: 'PRODUCTS', label: 'إدارة المنتجات', icon: Package },
   { screen: 'ORDERS', label: 'طلبات الشحن', icon: Truck },
   { screen: 'VOUCHERS', label: 'سجل المحفظة والإيصالات', icon: Receipt },
 ];
 
-export default function DashboardLayout({ currentScreen, onNavigate, vendor, children, otaStatus, onOtaRefresh, otaRefreshing, onLogout }) {
+export default function DashboardLayout({ currentScreen, onNavigate, vendor, children, otaStatus, onOtaRefresh, otaRefreshing, onLogout, profileCompletion, profileLoading, profileLoadError }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const currentLabel = navItems.find((item) => item.screen === currentScreen)?.label || 'لوحة التحكم';
+  const canManageProfile = ['owner', 'admin'].includes(vendor?.companyRole);
+  const currentLabel = navItems.find((item) => item.screen === currentScreen && (!item.profile || canManageProfile))?.label || 'لوحة التحكم';
+  const profileIncomplete = canManageProfile && !profileCompletion?.isComplete;
+  const profilePercentage = profileCompletion?.percentage ?? 0;
   const otaState = otaStatus?.status || 'checking';
   const otaLabel = otaState === 'current' || otaState === 'updated'
     ? 'التطبيق محدّث'
@@ -60,10 +64,11 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6 scrollbar-thin">
-        {navItems.map(({ screen, label, icon: Icon }) => (
+        {navItems.filter((item) => !item.profile || canManageProfile).map(({ screen, label, icon: Icon, profile }) => (
           <button key={screen} onClick={() => { onNavigate(screen); setMobileOpen(false); }} className={`group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right transition-all ${currentScreen === screen ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <span className={`transition-transform ${currentScreen === screen ? 'scale-110' : 'group-hover:scale-110'}`}><Icon className="h-5 w-5" /></span>
             <span className="flex-1 text-right text-sm font-semibold">{label}</span>
+            {profile && profileIncomplete && <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${currentScreen === screen ? 'bg-white/20 text-white' : 'bg-alert-500/15 text-alert-300'}`}>{profileLoading ? '…' : `${profilePercentage}%`}</span>}
             {currentScreen === screen && <ChevronLeft className="h-4 w-4" />}
           </button>
         ))}
@@ -117,6 +122,18 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
             </div>
           </div>
         </header>
+        {profileIncomplete && (
+          <section role="status" className="border-b border-alert-200 bg-alert-50 px-4 py-3 sm:px-6">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-alert-600" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-alert-900">ملف الشركة غير مكتمل</p>
+                <p className="truncate text-xs text-alert-800">{profileLoading ? 'جارٍ التحقق من الملف المحفوظ...' : profileLoadError ? 'تعذر التحقق من البيانات؛ سيظل التنبيه ظاهرًا حتى إعادة المحاولة.' : `نسبة الاكتمال ${profilePercentage}%. أكمل البيانات وارفع المستندات المطلوبة.`}</p>
+              </div>
+              <button type="button" onClick={() => onNavigate('COMPANY_PROFILE')} className="shrink-0 rounded-xl bg-alert-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-alert-700">استكمال الملف</button>
+            </div>
+          </section>
+        )}
         <main className="p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
