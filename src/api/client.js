@@ -62,7 +62,8 @@ export const authApi = {
   google: (data) => apiRequest('/api/auth/google', { method: 'POST', body: data, token: null }),
   me: () => apiRequest('/api/auth/me'),
   companies: () => apiRequest('/api/companies'),
-  createCompany: (data) => apiRequest('/api/companies', { method: 'POST', body: data }),
+  storeRequest: () => apiRequest('/api/merchant/store-requests/me'),
+  submitStoreRequest: (data) => apiRequest('/api/merchant/store-requests', { method: 'POST', body: data }),
   setCompanyGovernorate: (companyId, governorate) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/governorate`, { method: 'PATCH', body: { governorate } }),
 };
 
@@ -124,13 +125,6 @@ export function mapBackendProduct(product) {
     status: product.status || '',
     rejectionReason: product.rejection_reason || product.rejectionReason || '',
   };
-}
-
-export function makeCompanySlug(name) {
-  const slug = String(name || 'merchant').normalize('NFKD').toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '').slice(0, 42);
-  return `${slug || 'merchant'}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 export { API_BASE_URL };

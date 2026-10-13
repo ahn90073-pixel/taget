@@ -135,11 +135,11 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
                 <p className="max-w-sm text-sm leading-7 text-slate-500">
                   {googleNative
                     ? needsCompanyName
-                      ? 'هذا حساب جديد. اكتب اسم المتجر واختر المحافظة لإكمال إنشاء مساحة متجرك.'
-                      : 'تابع بحساب Google؛ إذا كان مرتبطًا بمتجر سندخلك مباشرة، وإذا كان جديدًا سنطلب اسم المتجر والمحافظة.'
+                      ? 'هذا حساب جديد. بعد تسجيل الدخول يمكنك إرسال بياناتك وطلب إنشاء المتجر إلى الإدارة.'
+                      : 'تابع بحساب Google؛ إذا كان مرتبطًا بمتجر معتمد سندخلك مباشرة، وإذا كان جديدًا يمكنك تقديم طلب إنشاء متجر بعد الدخول.'
                     : isLogin
                       ? 'أدخل بيانات حسابك للمتابعة إلى متجرك.'
-                      : 'أكمل بياناتك للبدء في إدارة متجرك من مكان واحد.'}
+                      : 'أكمل بياناتك الشخصية وبيانات المتجر لإرسال طلبك إلى الإدارة. يبدأ إعداد المتجر بعد الموافقة.'}
                 </p>
               </div>
 
@@ -176,7 +176,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
                     ) : (
                       <div className="flex items-start gap-2.5 rounded-2xl bg-slate-50 px-4 py-3.5 text-xs leading-6 text-slate-500">
                         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
-                        <p>سنتحقق من حسابك بأمان؛ الحساب المرتبط يدخل مباشرة، والحساب الجديد يطلب اسم المتجر والمحافظة.</p>
+                        <p>سنتحقق من حسابك بأمان؛ الحساب المرتبط بمتجر معتمد يدخل مباشرة، ويمكن للحساب الجديد تقديم طلب متجر بعد الدخول.</p>
                       </div>
                     )}
 
@@ -234,7 +234,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
                       {busy ? (
                         <><Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> جارٍ الاتصال بالخادم...</>
                       ) : (
-                        <>{isLogin ? 'دخول إلى الحساب' : 'إنشاء الحساب والمتجر'}<ArrowLeft className="h-5 w-5" aria-hidden="true" /></>
+                        <>{isLogin ? 'دخول إلى الحساب' : 'إنشاء الحساب وإرسال الطلب'}<ArrowLeft className="h-5 w-5" aria-hidden="true" /></>
                       )}
                     </button>
                   </>
