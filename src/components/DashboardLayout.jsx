@@ -6,6 +6,7 @@ import { exitAndroidApp, registerAndroidBackButton } from '@/utils/androidBackBu
 export default function DashboardLayout({ currentScreen, onNavigate, vendor, children, otaStatus, onOtaRefresh, otaRefreshing, onLogout, profileCompletion, profileLoading, profileLoadError }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const canManageProfile = vendor?.isDemo || ['owner', 'admin'].includes(vendor?.companyRole);
+  const canViewWallet = vendor?.isDemo || ['owner', 'admin'].includes(vendor?.companyRole);
   const profileScreen = vendor?.isDemo ? 'STORE_PROFILE' : 'COMPANY_PROFILE';
   const navItems = [
     { screen: 'DASHBOARD', label: 'لوحة التحكم', icon: LayoutDashboard },
@@ -64,7 +65,7 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6 scrollbar-thin">
-        {navItems.filter((item) => !item.profile || canManageProfile).map(({ screen, label, icon: Icon, profile }) => (
+        {navItems.filter((item) => (!item.profile || canManageProfile) && (item.screen !== 'VOUCHERS' || canViewWallet)).map(({ screen, label, icon: Icon, profile }) => (
           <button key={screen} onClick={() => { onNavigate(screen); setMobileOpen(false); }} className={`group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-right transition-all ${currentScreen === screen ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
             <span className={`transition-transform ${currentScreen === screen ? 'scale-110' : 'group-hover:scale-110'}`}><Icon className="h-5 w-5" /></span>
             <span className="flex-1 text-right text-sm font-semibold">{label}</span>
