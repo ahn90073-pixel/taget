@@ -229,9 +229,17 @@ function App() {
   };
 
   const handleStoreRequestSubmit = async (application) => {
-    const request = await authApi.submitStoreRequest(application);
+    const { documents = {}, ...profileApplication } = application;
+    let request = await authApi.saveStoreRequestProfile(profileApplication);
     setStoreRequest(request);
-    setVendor((current) => current?.isDemo ? { ...current, storeName: request?.storeName || application.storeName } : current);
+    for (const [documentType, file] of Object.entries(documents)) {
+      if (!file) continue;
+      request = await authApi.uploadStoreRequestDocument(documentType, file);
+      setStoreRequest(request);
+    }
+    request = await authApi.finalizeStoreRequest();
+    setStoreRequest(request);
+    setVendor((current) => current?.isDemo ? { ...current, storeName: application.profileData?.displayName || request?.storeName || current.storeName } : current);
     setStoreRequestError('');
     return request;
   };

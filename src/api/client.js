@@ -71,6 +71,13 @@ export const authApi = {
   companies: () => apiRequest('/api/companies'),
   storeRequest: () => apiRequest('/api/merchant/store-requests/me'),
   submitStoreRequest: (data) => apiRequest('/api/merchant/store-requests', { method: 'POST', body: data }),
+  saveStoreRequestProfile: (data) => apiRequest('/api/merchant/store-requests/me/profile', { method: 'PUT', body: data }),
+  uploadStoreRequestDocument: (documentType, file) => {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return apiRequest(`/api/merchant/store-requests/me/documents/${encodeURIComponent(documentType)}`, { method: 'POST', body: form });
+  },
+  finalizeStoreRequest: () => apiRequest('/api/merchant/store-requests/me/submit', { method: 'POST', body: {} }),
   setCompanyGovernorate: (companyId, governorate) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/governorate`, { method: 'PATCH', body: { governorate } }),
 };
 
