@@ -19,6 +19,7 @@ import { egyptGovernorates } from '@/data/egyptGovernorates';
 function companyToVendor(company, user) {
   return {
     apiCompanyId: company.id,
+    userId: user?.id || user?.email || '',
     companyRole: company.role || '',
     vendorName: user?.full_name || user?.fullName || '',
     email: user?.email || company.email || '',
@@ -28,6 +29,19 @@ function companyToVendor(company, user) {
     status: company.status || '',
     warehouseAddress: company.warehouse_address || company.warehouseAddress || null,
     payoutMethod: company.payout_method || company.payoutMethod || '',
+  };
+}
+
+function createDemoVendor(user, request = null) {
+  return {
+    apiCompanyId: null,
+    userId: user?.id || user?.email || '',
+    companyRole: 'owner',
+    vendorName: user?.full_name || user?.fullName || 'التاجر',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    storeName: request?.storeName || 'متجري التجريبي',
+    isDemo: true,
   };
 }
 
@@ -61,7 +75,6 @@ function App() {
   const [authToken, setAuthToken] = useState(sessionStore.getToken());
   const [accountUser, setAccountUser] = useState(null);
   const [storeRequest, setStoreRequest] = useState(null);
-  const [storeRequestDraft, setStoreRequestDraft] = useState(null);
   const [storeRequestError, setStoreRequestError] = useState('');
   const [storeRequestRefreshing, setStoreRequestRefreshing] = useState(false);
   const [isRestoringSession, setIsRestoringSession] = useState(() => Boolean(sessionStore.getToken()));
@@ -87,7 +100,7 @@ function App() {
     } finally { setOtaRefreshing(false); }
   }, []);
 
-  const acceptSession = useCallback(async (token, user, initialApplication = null) => {
+  const acceptSession = useCallback(async (token, user) => {
     sessionStore.setToken(token);
     setIsRestoringSession(true);
     setAuthToken(token);
@@ -98,39 +111,41 @@ function App() {
     try {
       companies = await authApi.companies();
     } catch (error) {
-      setVendor(null);
-      setStoreRequestError(error.message || 'تعذر تحميل حالة المتجر. أعد المحاولة.');
+      const cachedCompany = sessionStore.getCompany();
+      if (cachedCompany?.id) {
+        setVendor(companyToVendor(cachedCompany, user));
+        setScreen('DASHBOARD');
+      } else {
+        const demoUser = sessionStore.getDemoUser() || user;
+        sessionStore.setDemoUser(demoUser);
+        setAccountUser(demoUser);
+        setVendor(createDemoVendor(demoUser));
+        setStoreRequestError(error.message || 'تعذر التحقق من حالة الطلب. سيظل المتجر التجريبي محفوظًا على هذا الجهاز.');
+      }
       setIsRestoringSession(false);
       return;
     }
     if (!Array.isArray(companies)) companies = companies?.items || [];
     const company = companies[0];
     if (!company?.id) {
-      setVendor(null);
+      sessionStore.clearCompany();
+      sessionStore.setDemoUser(user);
       setCompanyProfile(null);
       setPendingGovernorate(null);
       setStoreRequestError('');
-      setStoreRequestDraft(initialApplication);
+      setScreen('DASHBOARD');
+      setVendor(createDemoVendor(user));
       try {
-        const request = initialApplication
-          ? await authApi.submitStoreRequest(initialApplication)
-          : await authApi.storeRequest();
-        setStoreRequest(request || null);
-        setStoreRequestDraft(null);
+        const request = await authApi.storeRequest();
+        setStoreRequest(request?.status === 'none' ? null : request || null);
+        setVendor(createDemoVendor(user, request));
       } catch (error) {
-        if (error.status === 409) {
-          try {
-            setStoreRequest(await authApi.storeRequest());
-            setStoreRequestDraft(null);
-          }
-          catch { setStoreRequestError(error.message || 'تعذر تحميل طلبك الحالي.'); }
-        } else {
-          setStoreRequestError(error.message || 'تعذر تحميل أو إرسال طلب المتجر. يمكنك المحاولة مرة أخرى.');
-        }
+        setStoreRequestError(error.message || 'تعذر تحميل حالة طلب المتجر. يمكنك إعادة المحاولة من ملف التقديم.');
       }
       setIsRestoringSession(false);
       return;
     }
+    sessionStore.clearDemoUser();
     if (!company.governorate) {
       setPendingGovernorate({ token, user, company });
       setGovernorateError('');
@@ -162,7 +177,7 @@ function App() {
     setSessionRestoreError('');
     try {
       const user = await authApi.me();
-      await acceptSession(token, user, '');
+      await acceptSession(token, user);
     } catch (error) {
       console.warn('Saved session could not be restored', error);
       if (error?.status === 401 || error?.status === 404) {
@@ -171,7 +186,15 @@ function App() {
         setAuthToken(null);
       } else {
         // Offline/server errors are temporary; keep the saved token and allow retry.
-        setSessionRestoreError('تحقق من اتصال الإنترنت ثم أعد المحاولة. احتفظنا ببيانات الدخول ولم نسجّل خروجك.');
+        const demoUser = sessionStore.getDemoUser();
+        if (demoUser) {
+          setAccountUser(demoUser);
+          setVendor(createDemoVendor(demoUser));
+          setScreen('DASHBOARD');
+          setSessionRestoreError('');
+        } else {
+          setSessionRestoreError('تحقق من اتصال الإنترنت ثم أعد المحاولة. احتفظنا ببيانات الدخول ولم نسجّل خروجك.');
+        }
       }
     } finally {
       restoreInFlight.current = false;
@@ -179,31 +202,23 @@ function App() {
     }
   }, [acceptSession]);
 
-  const handleAuthComplete = async ({ mode, vendorName, email, phone, password, storeName, governorate }) => {
+  const handleAuthComplete = async ({ mode, vendorName, email, phone, password }) => {
     const result = mode === 'register'
       ? await authApi.register({ email, password, fullName: vendorName, phone })
       : await authApi.login({ email, password });
     if (!result?.token || !result?.user) throw new Error('استجابة المصادقة لا تحتوي على بيانات المستخدم أو رمز الجلسة.');
-    const initialApplication = mode === 'register'
-      ? { fullName: vendorName, phone, storeName, governorate }
-      : null;
-    await acceptSession(result.token, result.user, initialApplication);
+    await acceptSession(result.token, result.user);
   };
 
-  const handleGoogleAuthComplete = async ({ storeName = '', phone = '', governorate = '' }) => {
+  const handleGoogleAuthComplete = async () => {
     const idToken = pendingGoogleIdToken.current || await signInWithGoogle();
     try {
-      const result = await authApi.google({ idToken, storeName, phone, governorate });
+      const result = await authApi.google({ idToken });
       if (!result?.token || !result?.user) throw new Error('استجابة المصادقة لا تحتوي على بيانات المستخدم أو رمز الجلسة.');
       pendingGoogleIdToken.current = null;
       await acceptSession(result.token, result.user);
     } catch (error) {
-      if (error.status === 400 && error.message.includes('أدخل اسم المتجر')) {
-        pendingGoogleIdToken.current = idToken;
-        error.code = 'GOOGLE_STORE_NAME_REQUIRED';
-      } else {
-        pendingGoogleIdToken.current = null;
-      }
+      pendingGoogleIdToken.current = null;
       throw error;
     }
   };
@@ -216,7 +231,7 @@ function App() {
   const handleStoreRequestSubmit = async (application) => {
     const request = await authApi.submitStoreRequest(application);
     setStoreRequest(request);
-    setStoreRequestDraft(null);
+    setVendor((current) => current?.isDemo ? { ...current, storeName: request?.storeName || application.storeName } : current);
     setStoreRequestError('');
     return request;
   };
@@ -321,7 +336,6 @@ function App() {
       setPendingGovernorate(null);
       setAccountUser(null);
       setStoreRequest(null);
-      setStoreRequestDraft(null);
       setStoreRequestError('');
       setScreen('DASHBOARD');
     };
@@ -338,7 +352,6 @@ function App() {
     setPendingGovernorate(null);
     setAccountUser(null);
     setStoreRequest(null);
-    setStoreRequestDraft(null);
     setStoreRequestError('');
     setScreen('DASHBOARD');
   };
@@ -347,9 +360,9 @@ function App() {
   if (authToken && !vendor && sessionRestoreError) return <SessionRestoreScreen error={sessionRestoreError} onRetry={restoreSession} onUseAnotherAccount={() => { sessionStore.clear(); setAuthToken(null); setSessionRestoreError(''); }} />;
   if (authToken && pendingGovernorate) return <GovernorateRequiredScreen saving={governorateSaving} error={governorateError} onSubmit={handleGovernorateComplete} onLogout={handleLogout} />;
   if (!authToken) return <RegisterScreen onAuthComplete={handleAuthComplete} onGoogleAuthComplete={handleGoogleAuthComplete} onGoogleAuthRestart={handleGoogleAuthRestart} />;
-  if (!vendor) return <StoreRequestScreen user={accountUser} request={storeRequest} draft={storeRequestDraft} loading={storeRequestRefreshing} error={storeRequestError} onSubmit={handleStoreRequestSubmit} onRefresh={handleStoreRequestRefresh} onLogout={handleLogout} />;
   return <DashboardLayout currentScreen={screen} onNavigate={setScreen} vendor={vendor} onLogout={handleLogout} otaStatus={otaStatus} onOtaRefresh={runOtaCheck} otaRefreshing={otaRefreshing} profileCompletion={companyProfile?.completion || null} profileLoading={profileLoading} profileLoadError={profileLoadError}>
     {screen === 'DASHBOARD' && <DashboardScreen vendor={vendor} token={authToken} />}
+    {screen === 'STORE_PROFILE' && vendor.isDemo && <StoreRequestScreen user={accountUser} request={storeRequest} loading={storeRequestRefreshing} error={storeRequestError} onSubmit={handleStoreRequestSubmit} onRefresh={handleStoreRequestRefresh} onLogout={handleLogout} />}
     {screen === 'COMPANY_PROFILE' && <CompanyProfileScreen key={`${vendor.apiCompanyId}:${profileRevision}`} companyId={vendor.apiCompanyId} vendor={vendor} profile={companyProfile} loading={profileLoading} loadError={profileLoadError} onRetry={refreshCompanyProfile} onProfileUpdated={handleProfileUpdated} />}
     {screen === 'PRODUCTS' && <ProductsScreen vendor={vendor} token={authToken} />}
     {screen === 'VOUCHERS' && <VouchersScreen vendor={vendor} />}

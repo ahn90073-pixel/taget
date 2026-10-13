@@ -1,6 +1,6 @@
 import { AlertCircle, Receipt } from 'lucide-react';
 
-export default function VouchersScreen() {
+export default function VouchersScreen({ vendor }) {
   return (
     <div className="space-y-6" dir="rtl">
       <div>
@@ -11,8 +11,8 @@ export default function VouchersScreen() {
         <div className="flex items-start gap-3">
           <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-700" />
           <div>
-            <h2 className="font-bold text-amber-900">بيانات المحفظة غير متاحة من الخادم حاليًا</h2>
-            <p className="mt-2 text-sm leading-6 text-amber-900/80">لا توفر واجهة التاجر حاليًا خدمة لقراءة الأرصدة أو الإيصالات أو لتسجيل دفعة. أزلنا المبالغ والإيصالات ومحاكاة الدفع الافتراضية، ولن يتغير أي رصيد من داخل التطبيق دون تأكيد فعلي من الخادم.</p>
+            <h2 className="font-bold text-amber-900">{vendor?.isDemo ? 'المحفظة غير مفعّلة في المتجر التجريبي' : 'بيانات المحفظة غير متاحة من الخادم حاليًا'}</h2>
+            <p className="mt-2 text-sm leading-6 text-amber-900/80">{vendor?.isDemo ? 'لا توجد بيانات مالية أو إيصالات حقيقية قبل موافقة الإدارة وإنشاء المتجر. تبقى التجربة المحلية منفصلة عن أي رصيد أو دفعة.' : 'لا توفر واجهة التاجر حاليًا خدمة لقراءة الأرصدة أو الإيصالات أو لتسجيل دفعة. أزلنا المبالغ والإيصالات ومحاكاة الدفع الافتراضية، ولن يتغير أي رصيد من داخل التطبيق دون تأكيد فعلي من الخادم.'}</p>
           </div>
         </div>
       </section>

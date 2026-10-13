@@ -40,6 +40,13 @@ export default function OrdersScreen({ vendor, token }) {
   const ordersRef = useRef([]);
 
   const loadOrders = useCallback(async (silent = false) => {
+    if (vendor.isDemo) {
+      setOrders([]);
+      setError('');
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     if (!silent) setRefreshing(true);
     try {
       const result = await ordersApi.list(vendor.apiCompanyId);
@@ -57,13 +64,21 @@ export default function OrdersScreen({ vendor, token }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [vendor.apiCompanyId]);
+  }, [vendor.apiCompanyId, vendor.isDemo]);
 
   useEffect(() => {
+    if (vendor.isDemo) {
+      setLoading(false);
+      return undefined;
+    }
     loadOrders();
     const timer = window.setInterval(() => loadOrders(true), 30000);
     return () => window.clearInterval(timer);
-  }, [loadOrders]);
+  }, [loadOrders, vendor.isDemo]);
+
+  if (vendor.isDemo) {
+    return <section dir="rtl" className="rounded-2xl border border-brand-200 bg-brand-50 p-6 text-brand-900"><ShoppingBag className="mb-3 h-8 w-8 text-brand-700" /><h1 className="text-lg font-bold">طلبات الشحن بعد إنشاء المتجر الحقيقي</h1><p className="mt-2 text-sm leading-7">المتجر التجريبي محلي فقط ولا يستقبل طلبات عملاء. ستظهر الطلبات الحقيقية بعد موافقة الإدارة وإنشاء المتجر والـschema.</p></section>;
+  }
 
   return (
     <div className="space-y-6" dir="rtl">

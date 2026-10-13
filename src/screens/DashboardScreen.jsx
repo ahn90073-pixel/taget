@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { AlertCircle, CheckCircle2, Clock3, Package, RefreshCw, XCircle } from 'lucide-react';
 import { mapBackendProduct, productsApi } from '@/api/client';
 import { formatNumber } from '@/utils/format';
+import { listDemoProducts } from '@/lib/demoStore';
 
 const statusLabels = {
   active: 'نشط',
@@ -14,13 +15,25 @@ const statusLabels = {
 
 export default function DashboardScreen({ vendor, token }) {
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(Boolean(vendor.apiCompanyId));
+  const [loading, setLoading] = useState(Boolean(vendor.apiCompanyId) || vendor.isDemo);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    setProducts([]);
+    if (vendor.isDemo) {
+      let active = true;
+      setLoading(true);
+      setError('');
+      listDemoProducts(vendor.userId)
+        .then((items) => { if (active) setProducts(items); })
+        .catch((requestError) => { if (active) setError(requestError.message || 'تعذر تحميل بيانات المتجر التجريبي.'); })
+        .finally(() => { if (active) setLoading(false); });
+      return () => { active = false; };
+    }
     if (!vendor.apiCompanyId) {
       setLoading(false);
-      setError('لم يربط الخادم هذا الحساب بمتجر؛ لا توجد بيانات متجر لعرضها.');
+      setProducts([]);
+      setError('لا يوجد متجر حقيقي مرتبط بهذا الحساب بعد.');
       return undefined;
     }
     let active = true;
@@ -35,7 +48,7 @@ export default function DashboardScreen({ vendor, token }) {
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [vendor.apiCompanyId, token]);
+  }, [vendor.apiCompanyId, vendor.isDemo, vendor.userId, token]);
 
   const counts = useMemo(() => ({
     total: products.length,
@@ -54,20 +67,20 @@ export default function DashboardScreen({ vendor, token }) {
   return (
     <div className="space-y-6" dir="rtl">
       <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl bg-gradient-to-l from-[#102a43] via-[#0f766e] to-[#0f3d56] p-6 text-white shadow-lg sm:p-8">
-        <p className="text-sm text-teal-100">لوحة متجر متصلة بالبيانات الفعلية</p>
+        <p className="text-sm text-teal-100">{vendor.isDemo ? 'متجر تجريبي محفوظ محليًا على هذا الجهاز' : 'لوحة متجر متصلة بالبيانات الفعلية'}</p>
         <h1 className="mt-1 text-2xl font-bold">{vendor.storeName || 'اسم المتجر غير متاح'}</h1>
         {vendor.vendorName && <p className="mt-2 text-sm text-teal-100">{vendor.vendorName}</p>}
       </motion.section>
 
       <div role="status" className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">
         <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-brand-600" />
-        <p>تعرض هذه اللوحة أعداد المنتجات التي جلبها التطبيق مباشرة من الخادم. لا توفر واجهة التاجر حاليًا بيانات المبيعات أو الطلبات أو المحفظة؛ لذلك لن تظهر هنا أرقام تقديرية أو سجلات تجريبية.</p>
+        <p>{vendor.isDemo ? 'هذه أرقام محلية لمنتجات تجريبية محفوظة على الجهاز فقط؛ لا تُرفع إلى الخادم أو المتجر الحقيقي ولا تُنقل بعد الموافقة.' : 'تعرض هذه اللوحة أعداد المنتجات التي جلبها التطبيق مباشرة من الخادم. لا توفر واجهة التاجر حاليًا بيانات المبيعات أو الطلبات أو المحفظة؛ لذلك لن تظهر هنا أرقام تقديرية أو سجلات تجريبية.'}</p>
       </div>
 
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {loading && <div className="flex items-center gap-2 rounded-xl border border-brand-100 bg-brand-50 p-3 text-sm text-brand-700"><RefreshCw className="h-4 w-4 animate-spin" />جارٍ تحميل بيانات المتجر من الخادم...</div>}
+      {loading && <div className="flex items-center gap-2 rounded-xl border border-brand-100 bg-brand-50 p-3 text-sm text-brand-700"><RefreshCw className="h-4 w-4 animate-spin" />{vendor.isDemo ? 'جارٍ تحميل المنتجات التجريبية من الجهاز...' : 'جارٍ تحميل بيانات المتجر من الخادم...'}</div>}
 
-      <section aria-label="ملخص المنتجات الفعلي" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label={vendor.isDemo ? 'ملخص المنتجات التجريبية المحلية' : 'ملخص المنتجات الفعلي'} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map(({ label, value, icon: Icon, style }) => (
           <article key={label} className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
             <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-xl ${style}`}><Icon className="h-5 w-5" /></div>
@@ -78,8 +91,8 @@ export default function DashboardScreen({ vendor, token }) {
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-5 py-4"><h2 className="font-bold text-slate-900">منتجات المتجر من الخادم</h2></div>
-        {loading ? <p className="p-6 text-sm text-slate-500">جارٍ تحميل المنتجات...</p> : error ? <p className="p-6 text-sm text-slate-500">لم نعرض بيانات قديمة أو تجريبية؛ أصلح الاتصال بالخادم ثم أعد المحاولة.</p> : products.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">الخادم لا يعيد منتجات لهذا المتجر حاليًا.</p> : (
+        <div className="border-b border-slate-100 px-5 py-4"><h2 className="font-bold text-slate-900">{vendor.isDemo ? 'منتجاتك التجريبية المحلية' : 'منتجات المتجر من الخادم'}</h2></div>
+        {loading ? <p className="p-6 text-sm text-slate-500">جارٍ تحميل المنتجات...</p> : error ? <p className="p-6 text-sm text-slate-500">تعذر تحميل قائمة المنتجات؛ أعد المحاولة.</p> : products.length === 0 ? <p className="p-8 text-center text-sm text-slate-500">{vendor.isDemo ? 'لم تضف منتجات تجريبية على هذا الجهاز بعد.' : 'الخادم لا يعيد منتجات لهذا المتجر حاليًا.'}</p> : (
           <ul className="divide-y divide-slate-100">
             {products.slice(0, 5).map((product) => <li key={product.id} className="flex items-center justify-between gap-4 px-5 py-4">
               <div className="flex min-w-0 items-center gap-3">

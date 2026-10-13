@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
-  Building2,
   Lock,
   Loader2,
   Mail,
@@ -12,7 +11,6 @@ import {
   User,
 } from 'lucide-react';
 import { isAndroidNative, isGoogleNativeAuthAvailable } from '@/lib/firebaseAuth';
-import { egyptGovernorates } from '@/data/egyptGovernorates';
 
 export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, onGoogleAuthRestart }) {
   const androidApp = isAndroidNative();
@@ -22,11 +20,8 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [storeName, setStoreName] = useState('');
-  const [governorate, setGovernorate] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [needsCompanyName, setNeedsCompanyName] = useState(false);
   const isLogin = mode === 'login';
 
   const handleSubmit = async (event) => {
@@ -35,7 +30,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
     setBusy(true);
     try {
       if (googleNative) {
-        await onGoogleAuthComplete({ mode, phone: phone.trim(), storeName: storeName.trim(), governorate });
+        await onGoogleAuthComplete({});
       } else {
         await onAuthComplete({
           mode,
@@ -43,17 +38,10 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
           email: email.trim().toLowerCase(),
           phone: phone.trim(),
           password,
-          storeName: storeName.trim(),
-          governorate,
         });
       }
     } catch (err) {
-      if (googleNative && err?.code === 'GOOGLE_STORE_NAME_REQUIRED') {
-        setNeedsCompanyName(true);
-        setError('');
-      } else {
-        setError(err.message || 'تعذر إتمام العملية. حاول مرة أخرى.');
-      }
+      setError(err.message || 'تعذر إتمام العملية. حاول مرة أخرى.');
     } finally {
       setBusy(false);
     }
@@ -64,10 +52,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
     setBusy(true);
     try {
       await onGoogleAuthRestart?.();
-      setStoreName('');
       setPhone('');
-      setGovernorate('');
-      setNeedsCompanyName(false);
     } catch (err) {
       setError(err.message || 'تعذر تغيير حساب Google. حاول مرة أخرى.');
     } finally {
@@ -128,57 +113,24 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
               <div className="mb-7 space-y-2.5">
                 <p className="text-xs font-bold tracking-wide text-brand-700">مرحبًا بك في متجرك</p>
                 <h2 className="font-display text-2xl font-bold text-slate-950 sm:text-[1.75rem]">
-                  {googleNative
-                    ? needsCompanyName ? 'إكمال إنشاء حساب التاجر' : 'الدخول إلى متجرك'
-                    : isLogin ? 'تسجيل الدخول' : 'إنشاء حساب تاجر'}
+                  {googleNative ? 'الدخول إلى متجرك' : isLogin ? 'تسجيل الدخول' : 'إنشاء حساب تاجر'}
                 </h2>
                 <p className="max-w-sm text-sm leading-7 text-slate-500">
                   {googleNative
-                    ? needsCompanyName
-                      ? 'هذا حساب جديد. بعد تسجيل الدخول يمكنك إرسال بياناتك وطلب إنشاء المتجر إلى الإدارة.'
-                      : 'تابع بحساب Google؛ إذا كان مرتبطًا بمتجر معتمد سندخلك مباشرة، وإذا كان جديدًا يمكنك تقديم طلب إنشاء متجر بعد الدخول.'
+                    ? 'تابع بحساب Google؛ الحساب الجديد يدخل إلى متجر تجريبي محلي، ويمكنك تقديم طلب إنشاء متجر حقيقي من الملف الشخصي.'
                     : isLogin
                       ? 'أدخل بيانات حسابك للمتابعة إلى متجرك.'
-                      : 'أكمل بياناتك الشخصية وبيانات المتجر لإرسال طلبك إلى الإدارة. يبدأ إعداد المتجر بعد الموافقة.'}
+                      : 'أنشئ حسابك وادخل إلى متجر تجريبي محفوظ على هذا الجهاز. أرسل طلب إنشاء المتجر الحقيقي من الملف الشخصي بعد الدخول.'}
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 {googleNative ? (
                   <>
-                    {needsCompanyName ? (
-                      <>
-                        <div className="rounded-2xl border border-brand-100 bg-brand-50/70 px-4 py-3.5 text-sm leading-6 text-brand-900">
-                          لم يُعثر على حساب تاجر لهذا البريد بعد. أدخل اسم المتجر واختر المحافظة لإكمال التسجيل.
-                        </div>
-                        <Field
-                          icon={<Phone className="h-5 w-5" />}
-                          label="رقم الهاتف (اختياري)"
-                          value={phone}
-                          onChange={setPhone}
-                          placeholder="+20 1XX XXX XXXX"
-                          className={inputClass}
-                          type="tel"
-                        />
-                        <GovernorateField value={governorate} onChange={setGovernorate} />
-                        <Field
-                          icon={<Building2 className="h-5 w-5" />}
-                          label="اسم الشركة أو المتجر"
-                          value={storeName}
-                          onChange={setStoreName}
-                          placeholder="اكتب اسم شركتك أو متجرك"
-                          className={inputClass}
-                          minLength={2}
-                          maxLength={120}
-                          required
-                        />
-                      </>
-                    ) : (
-                      <div className="flex items-start gap-2.5 rounded-2xl bg-slate-50 px-4 py-3.5 text-xs leading-6 text-slate-500">
-                        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
-                        <p>سنتحقق من حسابك بأمان؛ الحساب المرتبط بمتجر معتمد يدخل مباشرة، ويمكن للحساب الجديد تقديم طلب متجر بعد الدخول.</p>
-                      </div>
-                    )}
+                    <div className="flex items-start gap-2.5 rounded-2xl bg-slate-50 px-4 py-3.5 text-xs leading-6 text-slate-500">
+                      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                      <p>الحساب المرتبط بمتجر معتمد يدخل إلى متجره، والحساب الجديد يبدأ بمتجر تجريبي محلي دون إنشاء مخطط بيانات.</p>
+                    </div>
 
                     <button
                       type="submit"
@@ -188,26 +140,24 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
                       {busy ? (
                         <>
                           <Loader2 className="h-5 w-5 animate-spin text-brand-600" aria-hidden="true" />
-                          <span>{needsCompanyName ? 'جارٍ إنشاء حسابك...' : 'جارٍ التحقق من Google...'}</span>
+                          <span>جارٍ التحقق من Google...</span>
                         </>
                       ) : (
                         <>
                           <GoogleMark className="h-6 w-6 shrink-0" />
-                          <span>{needsCompanyName ? 'إنشاء الحساب والمتابعة' : 'المتابعة باستخدام Google'}</span>
+                          <span>المتابعة باستخدام Google</span>
                         </>
                       )}
                     </button>
 
-                    {needsCompanyName && (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={handleGoogleAuthRestart}
-                        className="w-full py-1 text-sm font-semibold text-slate-500 transition hover:text-brand-700 disabled:opacity-50"
-                      >
-                        استخدام حساب Google آخر
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={handleGoogleAuthRestart}
+                      className="w-full py-1 text-sm font-semibold text-slate-500 transition hover:text-brand-700 disabled:opacity-50"
+                    >
+                      استخدام حساب Google آخر
+                    </button>
                   </>
                 ) : (
                   <>
@@ -220,8 +170,6 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
                       <>
                         <Field icon={<User className="h-5 w-5" />} label="اسم التاجر" value={vendorName} onChange={setVendorName} placeholder="الاسم بالكامل" className={inputClass} required />
                         <Field icon={<Phone className="h-5 w-5" />} label="رقم الهاتف" value={phone} onChange={setPhone} placeholder="+20 1XX XXX XXXX" className={inputClass} type="tel" required />
-                        <Field icon={<Building2 className="h-5 w-5" />} label="اسم المتجر" value={storeName} onChange={setStoreName} placeholder="اسم الشركة أو المتجر" className={inputClass} required />
-                        <GovernorateField value={governorate} onChange={setGovernorate} />
                       </>
                     )}
                     <Field icon={<Mail className="h-5 w-5" />} label="البريد الإلكتروني" value={email} onChange={setEmail} placeholder="merchant@email.com" className={inputClass} type="email" required />
@@ -234,7 +182,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
                       {busy ? (
                         <><Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> جارٍ الاتصال بالخادم...</>
                       ) : (
-                        <>{isLogin ? 'دخول إلى الحساب' : 'إنشاء الحساب وإرسال الطلب'}<ArrowLeft className="h-5 w-5" aria-hidden="true" /></>
+                        <>{isLogin ? 'دخول إلى الحساب' : 'إنشاء الحساب والمتابعة'}<ArrowLeft className="h-5 w-5" aria-hidden="true" /></>
                       )}
                     </button>
                   </>
@@ -315,23 +263,6 @@ function Field({ icon, label, value, onChange, className, ...props }) {
           className={className}
         />
       </span>
-    </label>
-  );
-}
-
-function GovernorateField({ value, onChange }) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-semibold text-slate-700">محافظة المتجر (إلزامي)</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3.5 text-base text-slate-900 transition focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand-100"
-        required
-      >
-        <option value="">اختر المحافظة</option>
-        {egyptGovernorates.map((governorate) => <option key={governorate} value={governorate}>{governorate}</option>)}
-      </select>
     </label>
   );
 }

@@ -3,19 +3,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutDashboard, Package, Receipt, Truck, Store, Menu, X, LogOut, ShieldCheck, ChevronLeft, RefreshCw, Building2, AlertTriangle } from 'lucide-react';
 import { exitAndroidApp, registerAndroidBackButton } from '@/utils/androidBackButton';
 
-const navItems = [
-  { screen: 'DASHBOARD', label: 'لوحة التحكم', icon: LayoutDashboard },
-  { screen: 'COMPANY_PROFILE', label: 'ملف الشركة', icon: Building2, profile: true },
-  { screen: 'PRODUCTS', label: 'إدارة المنتجات', icon: Package },
-  { screen: 'ORDERS', label: 'طلبات الشحن', icon: Truck },
-  { screen: 'VOUCHERS', label: 'سجل المحفظة والإيصالات', icon: Receipt },
-];
-
 export default function DashboardLayout({ currentScreen, onNavigate, vendor, children, otaStatus, onOtaRefresh, otaRefreshing, onLogout, profileCompletion, profileLoading, profileLoadError }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const canManageProfile = ['owner', 'admin'].includes(vendor?.companyRole);
+  const canManageProfile = vendor?.isDemo || ['owner', 'admin'].includes(vendor?.companyRole);
+  const profileScreen = vendor?.isDemo ? 'STORE_PROFILE' : 'COMPANY_PROFILE';
+  const navItems = [
+    { screen: 'DASHBOARD', label: 'لوحة التحكم', icon: LayoutDashboard },
+    { screen: profileScreen, label: vendor?.isDemo ? 'ملف طلب المتجر الحقيقي' : 'ملف الشركة', icon: Building2, profile: true },
+    { screen: 'PRODUCTS', label: vendor?.isDemo ? 'منتجات تجريبية محلية' : 'إدارة المنتجات', icon: Package },
+    { screen: 'ORDERS', label: 'طلبات الشحن', icon: Truck },
+    { screen: 'VOUCHERS', label: 'سجل المحفظة والإيصالات', icon: Receipt },
+  ];
   const currentLabel = navItems.find((item) => item.screen === currentScreen && (!item.profile || canManageProfile))?.label || 'لوحة التحكم';
-  const profileIncomplete = canManageProfile && !profileCompletion?.isComplete;
+  const profileIncomplete = !vendor?.isDemo && canManageProfile && !profileCompletion?.isComplete;
   const profilePercentage = profileCompletion?.percentage ?? 0;
   const otaState = otaStatus?.status || 'checking';
   const otaLabel = otaState === 'current' || otaState === 'updated'
@@ -57,7 +57,7 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-white">{vendor.apiCompanyId ? 'المتجر متصل' : 'قيد المراجعة'}</p>
+            <p className="text-xs font-semibold text-white">{vendor.isDemo ? 'متجر تجريبي محلي' : vendor.apiCompanyId ? 'المتجر متصل' : 'قيد المراجعة'}</p>
             <p className="truncate text-xs text-slate-400">{vendor.vendorName}</p>
           </div>
         </div>
@@ -122,6 +122,18 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
             </div>
           </div>
         </header>
+        {vendor.isDemo && (
+          <section role="status" className="border-b border-brand-200 bg-brand-50 px-4 py-3 sm:px-6">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-brand-700" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-brand-900">أنت تستخدم متجرًا تجريبيًا محفوظًا على هذا الجهاز</p>
+                <p className="text-xs leading-5 text-brand-800">المنتجات التجريبية لا تُرفع ولا تنتقل إلى المتجر الحقيقي. لا تُنشأ قاعدة بيانات المتجر إلا بعد موافقة الإدارة.</p>
+              </div>
+              <button type="button" onClick={() => onNavigate(profileScreen)} className="shrink-0 rounded-xl bg-brand-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-brand-800">ملف التقديم</button>
+            </div>
+          </section>
+        )}
         {profileIncomplete && (
           <section role="status" className="border-b border-alert-200 bg-alert-50 px-4 py-3 sm:px-6">
             <div className="flex items-center gap-3">

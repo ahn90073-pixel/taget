@@ -1,6 +1,7 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'https://tagerbackend.ahn90073.workers.dev').replace(/\/$/, '');
 const TOKEN_KEY = 'taget_api_token';
 const COMPANY_KEY = 'taget_company';
+const DEMO_USER_KEY = 'taget_demo_user';
 
 export const sessionStore = {
   getToken: () => localStorage.getItem(TOKEN_KEY),
@@ -9,7 +10,13 @@ export const sessionStore = {
     try { return JSON.parse(localStorage.getItem(COMPANY_KEY) || 'null'); } catch { return null; }
   },
   setCompany: (company) => localStorage.setItem(COMPANY_KEY, JSON.stringify(company)),
-  clear: () => { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(COMPANY_KEY); },
+  clearCompany: () => localStorage.removeItem(COMPANY_KEY),
+  getDemoUser: () => {
+    try { return JSON.parse(localStorage.getItem(DEMO_USER_KEY) || 'null'); } catch { return null; }
+  },
+  setDemoUser: (user) => localStorage.setItem(DEMO_USER_KEY, JSON.stringify(user)),
+  clearDemoUser: () => localStorage.removeItem(DEMO_USER_KEY),
+  clear: () => { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(COMPANY_KEY); localStorage.removeItem(DEMO_USER_KEY); },
 };
 
 export async function apiRequest(path, { method = 'GET', body, token = sessionStore.getToken() } = {}) {
