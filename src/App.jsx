@@ -373,7 +373,7 @@ function App() {
     {screen === 'STORE_PROFILE' && vendor.isDemo && <StoreRequestScreen user={accountUser} request={storeRequest} loading={storeRequestRefreshing} error={storeRequestError} onSubmit={handleStoreRequestSubmit} onRefresh={handleStoreRequestRefresh} onLogout={handleLogout} />}
     {screen === 'COMPANY_PROFILE' && <CompanyProfileScreen key={`${vendor.apiCompanyId}:${profileRevision}`} companyId={vendor.apiCompanyId} vendor={vendor} profile={companyProfile} loading={profileLoading} loadError={profileLoadError} onRetry={refreshCompanyProfile} onProfileUpdated={handleProfileUpdated} />}
     {screen === 'PRODUCTS' && <ProductsScreen vendor={vendor} token={authToken} />}
-    {screen === 'VOUCHERS' && <VouchersScreen vendor={vendor} />}
+    {screen === 'VOUCHERS' && <VouchersScreen vendor={vendor} token={authToken} />}
     {screen === 'ORDERS' && <OrdersScreen vendor={vendor} token={authToken} />}
     <div className="sr-only" aria-hidden="true">API: {API_BASE_URL}</div>
   </DashboardLayout>;

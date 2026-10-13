@@ -120,6 +120,10 @@ export const ordersApi = {
   ),
 };
 
+export const walletApi = {
+  get: (companyId) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/wallet`),
+};
+
 export function mapBackendProduct(product) {
   const images = Array.isArray(product.images)
     ? product.images.map((image, index) => typeof image === 'string'
