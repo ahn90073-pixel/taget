@@ -101,6 +101,10 @@ export const companyProfileApi = {
   },
 };
 
+export const notificationsApi = {
+  registerToken: (companyId, data) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/notifications/token`, { method: 'POST', body: data }),
+};
+
 export const productsApi = {
   list: (companyId) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/products?limit=100`),
   create: (companyId, data) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/products`, { method: 'POST', body: data }),
@@ -118,6 +122,7 @@ export const ordersApi = {
   list: (companyId, { page = 1, limit = 50, status = '' } = {}) => apiRequest(
     `/api/companies/${encodeURIComponent(companyId)}/orders?page=${page}&limit=${limit}${status ? `&status=${encodeURIComponent(status)}` : ''}`,
   ),
+  ready: (companyId, orderId) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/orders/${encodeURIComponent(orderId)}/ready`, { method: 'POST', body: {} }),
 };
 
 export const walletApi = {

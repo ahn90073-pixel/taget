@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Package, Receipt, Truck, Store, Menu, X, LogOut, ShieldCheck, ChevronLeft, RefreshCw, Building2, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Package, Receipt, Truck, Store, Menu, X, LogOut, ShieldCheck, ChevronLeft, RefreshCw, Building2, AlertTriangle, Bell } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { exitAndroidApp, registerAndroidBackButton } from '@/utils/androidBackButton';
+import { notificationsApi } from '@/api/client';
+import { getStoredFcmToken, initializePushNotifications } from '@/utils/pushNotifications';
 
 export default function DashboardLayout({ currentScreen, onNavigate, vendor, children, otaStatus, onOtaRefresh, otaRefreshing, onLogout, profileCompletion, profileLoading, profileLoadError }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [pushStatus, setPushStatus] = useState(() => vendor?.apiCompanyId && !vendor?.isDemo && getStoredFcmToken() ? 'enabled' : 'idle');
   const canManageProfile = vendor?.isDemo || ['owner', 'admin'].includes(vendor?.companyRole);
   const canViewWallet = vendor?.isDemo || ['owner', 'admin'].includes(vendor?.companyRole);
   const profileScreen = vendor?.isDemo ? 'STORE_PROFILE' : 'COMPANY_PROFILE';
@@ -25,6 +29,40 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
   const otaColor = otaState === 'error'
     ? 'text-alert-400'
     : otaState === 'current' || otaState === 'updated' ? 'text-financial-400' : 'text-brand-400';
+  const canEnablePush = Boolean(vendor?.apiCompanyId && !vendor?.isDemo);
+
+  useEffect(() => {
+    if (!canEnablePush) return undefined;
+    const handleTokenReady = () => setPushStatus('enabled');
+    window.addEventListener('fcm-token-ready', handleTokenReady);
+    return () => window.removeEventListener('fcm-token-ready', handleTokenReady);
+  }, [canEnablePush]);
+
+  const handlePushActivation = async () => {
+    if (!canEnablePush || pushStatus === 'activating') return;
+    setPushStatus('activating');
+    try {
+      const result = await initializePushNotifications();
+      if (!result.enabled) {
+        setPushStatus(result.reason === 'permission-denied' ? 'denied' : 'unavailable');
+        return;
+      }
+      const token = result.token || getStoredFcmToken();
+      if (!token) {
+        setPushStatus('error');
+        return;
+      }
+      await notificationsApi.registerToken(vendor.apiCompanyId, {
+        token,
+        platform: Capacitor.getPlatform(),
+        appVersion: import.meta.env.VITE_APP_VERSION || '1.0.0',
+      });
+      setPushStatus('enabled');
+    } catch (error) {
+      console.warn('Merchant notification activation failed', error);
+      setPushStatus('error');
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -117,6 +155,10 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {canEnablePush && <button type="button" onClick={handlePushActivation} disabled={pushStatus === 'activating'} className="flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-bold text-brand-700 transition hover:bg-brand-100 disabled:cursor-default disabled:opacity-70" title="تفعيل إشعارات الطلبات">
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">{pushStatus === 'activating' ? 'جارٍ التفعيل' : pushStatus === 'enabled' ? 'الإشعارات مفعلة' : pushStatus === 'denied' ? 'السماح بالإشعارات' : pushStatus === 'unavailable' ? 'فعّلها من تطبيق الهاتف' : pushStatus === 'error' ? 'إعادة المحاولة' : 'تفعيل الإشعارات'}</span>
+            </button>}
             <div className="flex items-center gap-2 pr-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white">{vendor.vendorName.charAt(0)}</div>
               <div className="hidden sm:block"><p className="text-sm font-semibold text-slate-800">{vendor.vendorName}</p><p className="text-xs text-slate-400">{vendor.email}</p></div>
