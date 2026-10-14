@@ -8,7 +8,7 @@ import { getStoredFcmToken, initializePushNotifications } from '@/utils/pushNoti
 
 export default function DashboardLayout({ currentScreen, onNavigate, vendor, children, otaStatus, onOtaRefresh, otaRefreshing, onLogout, profileCompletion, profileLoading, profileLoadError }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [pushStatus, setPushStatus] = useState(() => vendor?.apiCompanyId && !vendor?.isDemo && getStoredFcmToken() ? 'enabled' : 'idle');
+  const [pushStatus, setPushStatus] = useState('idle');
   const canManageProfile = vendor?.isDemo || ['owner', 'admin'].includes(vendor?.companyRole);
   const canViewWallet = vendor?.isDemo || ['owner', 'admin'].includes(vendor?.companyRole);
   const profileScreen = vendor?.isDemo ? 'STORE_PROFILE' : 'COMPANY_PROFILE';
@@ -31,32 +31,23 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
     : otaState === 'current' || otaState === 'updated' ? 'text-financial-400' : 'text-brand-400';
   const canEnablePush = Boolean(vendor?.apiCompanyId && !vendor?.isDemo);
 
-  useEffect(() => {
-    if (!canEnablePush) return undefined;
-    const handleTokenReady = () => setPushStatus('enabled');
-    window.addEventListener('fcm-token-ready', handleTokenReady);
-    return () => window.removeEventListener('fcm-token-ready', handleTokenReady);
-  }, [canEnablePush]);
-
   const handlePushActivation = async () => {
     if (!canEnablePush || pushStatus === 'activating') return;
     setPushStatus('activating');
     try {
-      const result = await initializePushNotifications();
+      const result = await initializePushNotifications({
+        onToken: (token) => notificationsApi.registerToken(vendor.apiCompanyId, {
+          token,
+          platform: Capacitor.getPlatform(),
+          appVersion: import.meta.env.VITE_APP_VERSION || '1.0.0',
+        }),
+      });
       if (!result.enabled) {
         setPushStatus(result.reason === 'permission-denied' ? 'denied' : 'unavailable');
         return;
       }
       const token = result.token || getStoredFcmToken();
-      if (!token) {
-        setPushStatus('error');
-        return;
-      }
-      await notificationsApi.registerToken(vendor.apiCompanyId, {
-        token,
-        platform: Capacitor.getPlatform(),
-        appVersion: import.meta.env.VITE_APP_VERSION || '1.0.0',
-      });
+      if (!token) throw new Error('لم يصل توكن FCM من الجهاز.');
       setPushStatus('enabled');
     } catch (error) {
       console.warn('Merchant notification activation failed', error);
