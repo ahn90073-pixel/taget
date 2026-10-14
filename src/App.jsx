@@ -3,7 +3,6 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { LoaderCircle, RefreshCw } from 'lucide-react';
 import { recordAppLaunch } from '@/plugins/nativeStorage';
 import { checkForOtaUpdate } from '@/utils/liveUpdates';
-import { initializePushNotifications } from '@/utils/pushNotifications';
 import { signInWithGoogle, signOutGoogle } from '@/lib/firebaseAuth';
 import { API_BASE_URL, authApi, companyProfileApi, sessionStore } from '@/api/client';
 import RegisterScreen from '@/screens/RegisterScreen';
@@ -304,7 +303,6 @@ function App() {
 
   useEffect(() => {
     recordAppLaunch().catch(() => {});
-    initializePushNotifications().catch(() => {});
     runOtaCheck();
     void restoreSession();
   }, [restoreSession, runOtaCheck]);
