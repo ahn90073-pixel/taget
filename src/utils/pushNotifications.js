@@ -8,7 +8,7 @@ let initializationPromise = null;
  * يفعّل إشعارات Firebase على Android/iOS عند توفر إعدادات المنصة.
  * على الويب لا ينفذ أي طلب صلاحيات.
  */
-export async function initializePushNotifications() {
+export async function initializePushNotifications({ onToken } = {}) {
   if (!Capacitor.isNativePlatform()) {
     return { enabled: false, reason: 'web' };
   }
@@ -18,14 +18,27 @@ export async function initializePushNotifications() {
   initializationPromise = (async () => {
     const listeners = [];
     try {
-      listeners.push(await PushNotifications.addListener('registration', token => {
-        localStorage.setItem(TOKEN_KEY, token.value);
+      let resolveToken;
+      let rejectToken;
+      const tokenReady = new Promise((resolve, reject) => {
+        resolveToken = resolve;
+        rejectToken = reject;
+      });
+      listeners.push(await PushNotifications.addListener('registration', async token => {
+        try { localStorage.setItem(TOKEN_KEY, token.value); } catch { /* The server write is authoritative. */ }
         window.dispatchEvent(new CustomEvent('fcm-token-ready', { detail: token.value }));
         console.info('Firebase notification token registered');
+        try {
+          await onToken?.(token.value);
+          resolveToken(token.value);
+        } catch (error) {
+          rejectToken(error);
+        }
       }));
 
       listeners.push(await PushNotifications.addListener('registrationError', error => {
         console.warn('Firebase notification registration error', error);
+        rejectToken(new Error('تعذّر الحصول على رمز إشعارات الجهاز.'));
       }));
 
       listeners.push(await PushNotifications.addListener('pushNotificationReceived', notification => {
@@ -46,7 +59,18 @@ export async function initializePushNotifications() {
       }
 
       await PushNotifications.register();
-      return { enabled: true, permission: permissions.receive, token: getStoredFcmToken() };
+      let timeoutId;
+      try {
+        const token = await Promise.race([
+          tokenReady,
+          new Promise((_, reject) => {
+            timeoutId = window.setTimeout(() => reject(new Error('انتهت مهلة تسجيل رمز الإشعارات.')), 20000);
+          }),
+        ]);
+        return { enabled: true, permission: permissions.receive, token };
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
     } catch (error) {
       console.warn('Firebase notifications are unavailable', error);
       for (const listener of listeners) await listener.remove().catch(() => {});
@@ -56,7 +80,7 @@ export async function initializePushNotifications() {
 
   try {
     const result = await initializationPromise;
-    if (!result.enabled) initializationPromise = null;
+    initializationPromise = null;
     return result;
   } catch (error) {
     initializationPromise = null;
