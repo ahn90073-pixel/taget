@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Bell, CheckCircle2, Clock3, MapPin, Package, Phone, RefreshCw, ShoppingBag } from 'lucide-react';
+import { Bell, Clock3, MapPin, Package, Phone, RefreshCw, ShoppingBag } from 'lucide-react';
 import { formatEGP, formatNumber } from '@/utils/format';
 import { ordersApi } from '@/api/client';
 
@@ -24,29 +24,28 @@ const statusStyles = {
   returned: 'bg-orange-100 text-orange-800',
   refunded: 'bg-slate-100 text-slate-700',
 };
-const readyStatuses = new Set(['pending', 'confirmed', 'processing']);
+const shipmentStatusLabels = {
+  pending: 'بانتظار التجهيز',
+  label_created: 'تم إنشاء بوليصة',
+  ready: 'تم تجهيز الطرد من الإدارة',
+  picked_up: 'استلمتها شركة الشحن',
+  in_transit: 'في الطريق',
+  delivered: 'تم التسليم',
+  failed: 'تعذر التسليم',
+  returned: 'مرتجع',
+};
 
 function formatDate(value) {
   if (!value) return '—';
   return new Intl.DateTimeFormat('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }
 
-function whatsappDigits(value) {
-  const arabicDigits = String(value || '').replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)));
-  let digits = arabicDigits.replace(/\D/g, '');
-  if (digits.startsWith('00')) digits = digits.slice(2);
-  if (digits.startsWith('0')) digits = `20${digits.slice(1)}`;
-  return digits;
-}
-
-export default function OrdersScreen({ vendor, token }) {
+export default function OrdersScreen({ vendor }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [newOrder, setNewOrder] = useState(null);
-  const [readyingId, setReadyingId] = useState(null);
-  const [readyNotices, setReadyNotices] = useState({});
   const firstLoad = useRef(true);
   const ordersRef = useRef([]);
 
@@ -87,27 +86,6 @@ export default function OrdersScreen({ vendor, token }) {
     return () => window.clearInterval(timer);
   }, [loadOrders, vendor.isDemo]);
 
-  const markOrderReady = async (order) => {
-    if (readyingId || !readyStatuses.has(order.status)) return;
-    setReadyingId(order.id);
-    setError('');
-    try {
-      await ordersApi.ready(vendor.apiCompanyId, order.id);
-      setReadyNotices((current) => ({ ...current, [order.id]: 'تم تجهيز الطرد. سيستلم العميل إشعار Push إذا كان قد وافق وسجّل جهازه.' }));
-    } catch (requestError) {
-      setError(requestError.message || 'تعذر تسجيل تجهيز الطرد.');
-    } finally {
-      setReadyingId(null);
-    }
-  };
-
-  const openWhatsAppDraft = (order) => {
-    const digits = whatsappDigits(order.customer_phone);
-    if (!digits) return;
-    const message = `مرحبًا، تم تجهيز الطرد الخاص بالطلب رقم ${order.order_number}. سنتابع معك خطوات الشحن والتسليم.`;
-    window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
-  };
-
   if (vendor.isDemo) {
     return <section dir="rtl" className="rounded-2xl border border-brand-200 bg-brand-50 p-6 text-brand-900"><ShoppingBag className="mb-3 h-8 w-8 text-brand-700" /><h1 className="text-lg font-bold">طلبات الشحن بعد إنشاء المتجر الحقيقي</h1><p className="mt-2 text-sm leading-7">المتجر التجريبي محلي فقط ولا يستقبل طلبات عملاء. ستظهر الطلبات الحقيقية بعد موافقة الإدارة وإنشاء المتجر والـschema.</p></section>;
   }
@@ -130,25 +108,22 @@ export default function OrdersScreen({ vendor, token }) {
         <button type="button" onClick={() => setNewOrder(null)} className="text-xs font-bold text-brand-700">إغلاق</button>
       </div>}
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">تجهيز الطرد وتحديث حالة الشحنة وإشعار العميل تتم من تطبيق الإدارة. هذه الشاشة للمتابعة فقط.</div>
       {loading && <div className="flex items-center gap-2 rounded-xl border border-brand-100 bg-brand-50 p-4 text-sm text-brand-700"><RefreshCw className="h-4 w-4 animate-spin" />جارٍ تحميل الطلبات...</div>}
       {!loading && !error && orders.length === 0 && <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center"><ShoppingBag className="mx-auto mb-3 h-12 w-12 text-slate-300" /><p className="text-sm text-slate-500">لا توجد طلبات لهذا المتجر حتى الآن.</p></div>}
 
       <div className="space-y-4">
         {orders.map((order) => <article key={order.id} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
           <div className="flex flex-col justify-between gap-3 border-b border-slate-100 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:px-5">
-            <div><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold text-slate-900">{order.order_number}</h2><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[order.status] || 'bg-slate-100 text-slate-700'}`}>{statusLabels[order.status] || order.status}</span></div><p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><Clock3 className="h-3.5 w-3.5" />{formatDate(order.placed_at || order.created_at)}</p></div>
+            <div><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold text-slate-900">{order.order_number}</h2><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[order.status] || 'bg-slate-100 text-slate-700'}`}>{statusLabels[order.status] || order.status}</span>{order.shipment_status && <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-800">{shipmentStatusLabels[order.shipment_status] || order.shipment_status}</span>}</div><p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><Clock3 className="h-3.5 w-3.5" />{formatDate(order.placed_at || order.created_at)}</p></div>
             <div className="text-right"><p className="text-lg font-extrabold text-brand-700">{formatEGP(order.grand_total)}</p><p className="text-xs text-slate-500">{order.payment_method === 'cash_on_delivery' ? 'الدفع عند الاستلام' : order.payment_method}</p></div>
           </div>
           <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
-            <div className="rounded-xl border border-slate-100 p-4"><h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-800"><Phone className="h-4 w-4 text-brand-600" />بيانات العميل</h3><p className="text-sm font-semibold text-slate-700">{order.customer_name || '—'}</p><p className="mt-1 text-sm text-slate-600">{order.customer_phone || '—'}</p>{order.customer_email && <p className="mt-1 break-all text-xs text-slate-500">{order.customer_email}</p>}{order.customer_phone && <button type="button" onClick={() => openWhatsAppDraft(order)} className="mt-3 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-700">WhatsApp للعميل</button>}</div>
+            <div className="rounded-xl border border-slate-100 p-4"><h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-800"><Phone className="h-4 w-4 text-brand-600" />بيانات العميل</h3><p className="text-sm font-semibold text-slate-700">{order.customer_name || '—'}</p><p className="mt-1 text-sm text-slate-600">{order.customer_phone || '—'}</p>{order.customer_email && <p className="mt-1 break-all text-xs text-slate-500">{order.customer_email}</p>}</div>
             <div className="rounded-xl border border-slate-100 p-4"><h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-800"><MapPin className="h-4 w-4 text-brand-600" />عنوان التوصيل</h3><p className="text-sm leading-6 text-slate-600">{[order.governorate, order.city, order.district, order.street, order.building && `مبنى ${order.building}`, order.apartment && `شقة ${order.apartment}`].filter(Boolean).join('، ') || '—'}</p></div>
           </div>
           <div className="border-t border-slate-100 px-4 py-3 sm:px-5"><h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-800"><Package className="h-4 w-4 text-brand-600" />المنتجات</h3><div className="space-y-2">{(order.items || []).map((item) => <div key={item.id} className="flex items-center justify-between gap-3 text-sm"><span className="min-w-0 truncate text-slate-700">{item.name} <span className="text-xs text-slate-400">× {formatNumber(item.quantity)}</span></span><span className="flex-shrink-0 font-bold text-slate-800">{formatEGP(item.totalPrice)}</span></div>)}</div></div>
           {order.customer_note && <p className="border-t border-slate-100 px-4 py-3 text-sm text-slate-600"><strong>ملاحظة العميل:</strong> {order.customer_note}</p>}
-          {(readyStatuses.has(order.status) || order.shipment_status === 'ready' || readyNotices[order.id]) && <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            {readyNotices[order.id] ? <p role="status" className="flex items-start gap-2 text-sm font-semibold text-emerald-700"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />{readyNotices[order.id]}</p> : order.shipment_status === 'ready' ? <p className="flex items-start gap-2 text-sm font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4 shrink-0" />تم تجهيز الطرد</p> : <span className="text-xs text-slate-500">بعد تجهيز الطرد سيُحدّث النظام حالة الطلب ويستخدم موافقة العميل المسجلة.</span>}
-            {!readyNotices[order.id] && order.shipment_status !== 'ready' && <button type="button" onClick={() => markOrderReady(order)} disabled={readyingId === order.id} className="rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-brand-800 disabled:cursor-wait disabled:opacity-60">{readyingId === order.id ? 'جارٍ تسجيل التجهيز...' : 'تم تجهيز الطرد'}</button>}
-          </div>}
         </article>)}
       </div>
     </div>
