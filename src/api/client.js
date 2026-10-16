@@ -122,6 +122,10 @@ export const ordersApi = {
   list: (companyId, { page = 1, limit = 50, status = '' } = {}) => apiRequest(
     `/api/companies/${encodeURIComponent(companyId)}/orders?page=${page}&limit=${limit}${status ? `&status=${encodeURIComponent(status)}` : ''}`,
   ),
+  requestShipping: (companyId, orderId) => apiRequest(
+    `/api/companies/${encodeURIComponent(companyId)}/orders/${encodeURIComponent(orderId)}/activate-shipping`,
+    { method: 'POST', body: {} },
+  ),
 };
 
 export const walletApi = {
