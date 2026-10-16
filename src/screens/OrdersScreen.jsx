@@ -28,7 +28,7 @@ const statusStyles = {
 const shipmentStatusLabels = {
   pending: 'بانتظار إجراء الإدارة',
   label_created: 'تم إنشاء بوليصة',
-  ready: 'تم تجهيز الطرد من الإدارة',
+  ready: 'تم تجهيز الشحنة من الإدارة',
   picked_up: 'استلمتها شركة الشحن',
   in_transit: 'في الطريق',
   delivered: 'تم التسليم',
@@ -187,22 +187,22 @@ export default function OrdersScreen({ vendor }) {
     return () => window.clearInterval(timer);
   }, [loadOrders, vendor.isDemo]);
 
-  const handleRequestShipping = async (order) => {
+  const handleMarkPrepared = async (order) => {
     setRequestingOrderId(order.id);
     setError('');
     setActionMessage('');
     try {
-      const result = await ordersApi.requestShipping(vendor.apiCompanyId, order.id);
+      const result = await ordersApi.reportPrepared(vendor.apiCompanyId, order.id);
       setOrders((current) => current.map((item) => item.id === order.id ? {
         ...item,
         shipping_request_status: result.status || 'pending',
         shipping_requested_at: result.requestedAt || item.shipping_requested_at,
       } : item));
       setActionMessage(result.alreadyRequested
-        ? `طلب تفعيل الشحن للطلب ${order.order_number} موجود بالفعل لدى الإدارة.`
-        : `تم إرسال طلب تفعيل الشحن للطلب ${order.order_number} إلى الإدارة.`);
+        ? `الطلب ${order.order_number} مسجل كمجهز لدى الإدارة بالفعل.`
+        : `تم إبلاغ الإدارة بأن الطلب ${order.order_number} تم تجهيزه. ستتولى الإدارة إرسال الإشعار وفتح WhatsApp للمراجعة.`);
     } catch (requestError) {
-      setError(requestError.message || 'تعذر إرسال طلب تفعيل الشحن.');
+      setError(requestError.message || 'تعذر تسجيل تجهيز الطلب لدى الإدارة.');
     } finally {
       setRequestingOrderId('');
     }
@@ -223,7 +223,7 @@ export default function OrdersScreen({ vendor }) {
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-xl font-bold text-slate-900">طلبات الشراء</h1>
-          <p className="mt-1 text-sm text-slate-500">اعرض تفاصيل الطلب كاملة. لا يبدأ الشحن تلقائيًا؛ يمكنك إرسال طلب تفعيله إلى الإدارة عند الاستعداد.</p>
+          <p className="mt-1 text-sm text-slate-500">اعرض تفاصيل الطلب كاملة. بعد تجهيز الطرد اضغط «تم التجهيز» لإبلاغ الإدارة؛ الإدارة وحدها ترسل إشعار العميل.</p>
         </div>
         <button type="button" onClick={() => loadOrders()} disabled={refreshing} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /> تحديث الطلبات
@@ -237,7 +237,7 @@ export default function OrdersScreen({ vendor }) {
       </div>}
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {actionMessage && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{actionMessage}</div>}
-      <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">استلام الطلب لا ينشئ عملية شحن. عند الضغط على «تفعيل الشحن» يصل طلب التفعيل إلى إشعارات الإدارة؛ الإدارة تتولى تجهيز الطرد وإشعار العميل.</div>
+      <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">بعد تجهيز الطلب لدى التاجر، اضغط «تم التجهيز». يظهر الطرد مجهزًا في إشعارات الإدارة؛ زر الإدارة يرسل Push ويفتح مسودة WhatsApp للمراجعة اليدوية.</div>
       {loading && <div className="flex items-center gap-2 rounded-xl border border-brand-100 bg-brand-50 p-4 text-sm text-brand-700"><RefreshCw className="h-4 w-4 animate-spin" />جارٍ تحميل الطلبات...</div>}
       {!loading && !error && orders.length === 0 && <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center"><ShoppingBag className="mx-auto mb-3 h-12 w-12 text-slate-300" /><p className="text-sm text-slate-500">لا توجد طلبات لهذا المتجر حتى الآن.</p></div>}
 
@@ -249,8 +249,8 @@ export default function OrdersScreen({ vendor }) {
           const orderIsClosed = ['cancelled', 'delivered', 'shipped', 'returned', 'refunded'].includes(order.status);
           const requestDisabled = requestPending || requestProcessed || shipmentIsActive || orderIsClosed || requestingOrderId === order.id;
           const requestLabel = requestPending
-            ? 'تم إرسال الطلب للإدارة'
-            : (requestProcessed || shipmentIsActive ? 'تم تفعيل الشحن من الإدارة' : 'تفعيل الشحن');
+            ? 'تم إبلاغ الإدارة بالتجهيز'
+            : (requestProcessed || shipmentIsActive ? 'تم إشعار العميل من الإدارة' : 'تم التجهيز');
           return <article key={order.id} className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
             <div className="flex flex-col justify-between gap-3 border-b border-slate-100 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:px-5">
               <div>
@@ -258,7 +258,7 @@ export default function OrdersScreen({ vendor }) {
                   <h2 className="font-bold text-slate-900">{order.order_number}</h2>
                   <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[order.status] || 'bg-slate-100 text-slate-700'}`}>{statusLabels[order.status] || order.status}</span>
                   {order.shipment_status && <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-800">{shipmentStatusLabels[order.shipment_status] || order.shipment_status}</span>}
-                  {requestPending && <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-800">بانتظار الإدارة</span>}
+                  {requestPending && <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-800">مجهز من التاجر — بانتظار الإشعار</span>}
                 </div>
                 <p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><Clock3 className="h-3.5 w-3.5" />{formatDate(order.placed_at || order.created_at)}</p>
               </div>
@@ -291,7 +291,7 @@ export default function OrdersScreen({ vendor }) {
 
             <div className="flex flex-col gap-2 border-t border-slate-100 p-4 sm:flex-row sm:justify-end sm:px-5">
               <button type="button" onClick={() => handlePdfDownload(order)} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"><Download className="h-4 w-4" />تحميل الطلب PDF</button>
-              <button type="button" onClick={() => handleRequestShipping(order)} disabled={requestDisabled} className="flex items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-slate-300">
+              <button type="button" onClick={() => handleMarkPrepared(order)} disabled={requestDisabled} className="flex items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-slate-300">
                 {requestPending || requestProcessed || shipmentIsActive ? <CheckCircle2 className="h-4 w-4" /> : (requestingOrderId === order.id ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />)}
                 {requestingOrderId === order.id ? 'جارٍ الإرسال...' : requestLabel}
               </button>
