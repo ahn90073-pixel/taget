@@ -8,6 +8,9 @@ on:
       - 'capacitor.config.json'
       - 'package.json'
       - 'package-lock.json'
+      - 'scripts/**'
+      - 'test/android_oauth_signing_test.py'
+      - 'FIREBASE_GOOGLE_SIGNIN.md'
       - '.github/workflows/android-build.yml'
   workflow_dispatch:
 
@@ -72,6 +75,9 @@ jobs:
           print('Firebase google-services.json validated for com.taget.app, the backend project, and Google OAuth clients.')
           PY
 
+      - name: Test Android OAuth signing validation
+        run: python3 -m unittest discover -s test -p '*_test.py'
+
       - name: Build web app and sync Capacitor
         run: npm run cap:sync
 
@@ -105,17 +111,49 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Build signed Release APK and AAB
-        if: steps.signing.outputs.configured == 'true'
-        working-directory: android
-        run: ./gradlew assembleRelease bundleRelease --no-daemon
+      - name: Verify Debug APK Google Sign-In certificate
+        id: debug-oauth
+        run: |
+          debug_sha1="$($ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | awk -F': ' '/certificate SHA-1 digest:/{print $2; exit}')"
+          if [ -z "$debug_sha1" ]; then
+            echo 'Could not read the Debug APK signing certificate.'
+            exit 1
+          fi
+          python3 scripts/validate_android_oauth_signing.py \
+            --firebase-config android/app/google-services.json \
+            --package-name com.taget.app \
+            --sha1 "$debug_sha1" \
+            --mode debug \
+            --github-output "$GITHUB_OUTPUT"
 
       - name: Upload installable Debug APK
+        if: steps.debug-oauth.outputs.matches == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: taget-debug-apk-${{ github.sha }}
           if-no-files-found: error
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Build signed Release APK and AAB
+        if: steps.signing.outputs.configured == 'true'
+        working-directory: android
+        run: ./gradlew assembleRelease bundleRelease --no-daemon
+
+      - name: Verify Release APK Google Sign-In certificate
+        if: steps.signing.outputs.configured == 'true'
+        id: release-oauth
+        run: |
+          release_sha1="$($ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs android/app/build/outputs/apk/release/app-release.apk | awk -F': ' '/certificate SHA-1 digest:/{print $2; exit}')"
+          if [ -z "$release_sha1" ]; then
+            echo 'Could not read the Release APK signing certificate.'
+            exit 1
+          fi
+          python3 scripts/validate_android_oauth_signing.py \
+            --firebase-config android/app/google-services.json \
+            --package-name com.taget.app \
+            --sha1 "$release_sha1" \
+            --mode release \
+            --github-output "$GITHUB_OUTPUT"
 
       - name: Upload signed Release APK and AAB
         if: steps.signing.outputs.configured == 'true'
@@ -129,10 +167,19 @@ jobs:
 
       - name: Build summary
         run: |
-          echo 'Installable Debug APK: download taget-debug-apk from this workflow run.' >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.debug-oauth.outputs.matches }}" = "true" ]; then
+            echo 'Google Sign-In compatible Debug APK: download taget-debug-apk from this workflow run.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Debug APK was not uploaded: its signing SHA-1 is not registered in Firebase, so Google Sign-In would fail. Use the validated Release APK or register a stable Debug certificate.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Debug APK SHA-1: ${{ steps.debug-oauth.outputs.sha1 }}' >> "$GITHUB_STEP_SUMMARY"
+          fi
           if [ "${{ steps.signing.outputs.configured }}" = "true" ]; then
-            echo 'Signed Release APK and AAB were generated.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Signed Release APK and AAB were generated and the Release APK SHA-1 was validated against Firebase.' >> "$GITHUB_STEP_SUMMARY"
           else
             echo 'Release APK/AAB were skipped because Android signing Secrets are missing.' >> "$GITHUB_STEP_SUMMARY"
             echo 'Add ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD to enable them.' >> "$GITHUB_STEP_SUMMARY"
+            if [ "${{ steps.debug-oauth.outputs.matches }}" != "true" ]; then
+              echo 'No Google Sign-In-compatible installable APK was produced.' >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
           fi
