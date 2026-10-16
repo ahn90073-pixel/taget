@@ -23,13 +23,13 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
   const currentLabel = navItems.find((item) => item.screen === currentScreen && (!item.profile || canManageProfile))?.label || 'لوحة التحكم';
   const profileIncomplete = !vendor?.isDemo && canManageProfile && !profileCompletion?.isComplete;
   const profilePercentage = profileCompletion?.percentage ?? 0;
-  const otaState = otaStatus?.status || 'checking';
-  const otaLabel = otaState === 'current' || otaState === 'updated'
-    ? 'التطبيق محدّث'
-    : otaState === 'error' ? 'تعذّر فحص التحديث' : 'فحص التحديث الهوائي';
+  const otaState = otaStatus?.status || 'current';
+  const otaDownloading = otaState === 'downloading';
+  const otaLabel = otaDownloading ? 'جارٍ تحديث التطبيق...' : otaState === 'updated'
+    ? 'تم تحديث التطبيق' : otaState === 'error' ? 'تعذّر فحص التحديث' : 'التطبيق محدّث';
   const otaColor = otaState === 'error'
     ? 'text-alert-400'
-    : otaState === 'current' || otaState === 'updated' ? 'text-financial-400' : 'text-brand-400';
+    : otaDownloading ? 'text-brand-300' : 'text-financial-400';
   const canEnablePush = Boolean(vendor?.apiCompanyId && !vendor?.isDemo);
 
   const handlePushActivation = async () => {
@@ -104,11 +104,11 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
           </button>
         ))}
 
-        <button type="button" onClick={onOtaRefresh} disabled={otaRefreshing || otaState === 'downloading'} title={otaStatus?.message || 'تحقق من وجود تحديثات'} className={`mt-3 flex w-full items-center gap-3 rounded-xl border border-slate-700/70 px-4 py-3 text-right transition-all hover:bg-slate-800 disabled:cursor-wait disabled:opacity-70 ${otaColor}`}>
-          <RefreshCw className={`h-5 w-5 flex-shrink-0 ${otaRefreshing || otaState === 'downloading' ? 'animate-spin' : ''}`} />
+        <button type="button" onClick={onOtaRefresh} disabled={otaRefreshing || otaState === 'downloading'} title={otaState === 'error' ? otaStatus?.message : 'تحقق من وجود تحديثات'} className={`mt-3 flex w-full items-center gap-3 rounded-xl border border-slate-700/70 px-4 py-3 text-right transition-all hover:bg-slate-800 disabled:cursor-default disabled:opacity-70 ${otaColor}`}>
+          <RefreshCw className={`h-5 w-5 flex-shrink-0 ${otaDownloading ? 'animate-spin' : ''}`} />
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold">{otaLabel}</span>
-            <span className="block truncate text-[10px] text-slate-500">{otaStatus?.message || 'اضغط للفحص الآن'}</span>
+            <span className="block truncate text-[10px] text-slate-500">{otaDownloading ? (otaStatus?.message || 'جارٍ تنزيل التحديث') : otaState === 'error' ? (otaStatus?.message || 'اضغط لإعادة المحاولة') : 'اضغط للفحص الآن'}</span>
           </span>
         </button>
       </nav>

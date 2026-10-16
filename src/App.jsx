@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
-import { LoaderCircle, RefreshCw } from 'lucide-react';
+import { RefreshCw, Store } from 'lucide-react';
 import { recordAppLaunch } from '@/plugins/nativeStorage';
+import { initializeMerchantCache } from '@/lib/merchantLocalCache';
 import { checkForOtaUpdate } from '@/utils/liveUpdates';
 import { signInWithGoogle, signOutGoogle } from '@/lib/firebaseAuth';
 import { API_BASE_URL, authApi, companyProfileApi, sessionStore } from '@/api/client';
@@ -44,14 +45,25 @@ function createDemoVendor(user, request = null) {
   };
 }
 
+function StartupSplash() {
+  return (
+    <main className="merchant-startup-splash" dir="rtl" aria-label="منصة السوق المصري">
+      <div className="merchant-startup-brand">
+        <div className="merchant-startup-icon"><Store size={34} strokeWidth={1.8} /></div>
+        <h1>تاجر</h1>
+        <div className="merchant-startup-line" />
+        <p>منصة السوق المصري</p>
+      </div>
+    </main>
+  );
+}
+
 function SessionRestoreScreen({ loading, error, onRetry, onUseAnotherAccount }) {
+  if (loading) return <StartupSplash />;
   return (
     <main dir="rtl" className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 text-center shadow-lg">
-        {loading ? <>
-          <LoaderCircle size={28} className="mx-auto animate-spin text-primary-600" />
-          <p className="mt-4 font-semibold text-slate-800">جارٍ استعادة جلسة الدخول...</p>
-        </> : <>
+        <>
           <h1 className="text-lg font-bold text-slate-900">تعذر استعادة الجلسة الآن</h1>
           <p role="alert" className="mt-3 text-sm leading-6 text-slate-600">{error}</p>
           <button type="button" onClick={onRetry} className="btn-primary mt-5 w-full">
@@ -60,23 +72,24 @@ function SessionRestoreScreen({ loading, error, onRetry, onUseAnotherAccount }) 
           <button type="button" onClick={onUseAnotherAccount} className="mt-3 text-sm font-semibold text-slate-500 underline">
             تسجيل الدخول بحساب آخر
           </button>
-        </>}
+        </>
       </section>
     </main>
   );
 }
 
 function App() {
-  const [otaStatus, setOtaStatus] = useState({ status: 'checking', message: 'جاري تجهيز فحص التحديث الهوائي...' });
+  const [otaStatus, setOtaStatus] = useState({ status: 'current', message: '' });
   const [otaRefreshing, setOtaRefreshing] = useState(false);
+  const [booting, setBooting] = useState(true);
   const [screen, setScreen] = useState('DASHBOARD');
   const [vendor, setVendor] = useState(null);
-  const [authToken, setAuthToken] = useState(sessionStore.getToken());
+  const [authToken, setAuthToken] = useState(null);
   const [accountUser, setAccountUser] = useState(null);
   const [storeRequest, setStoreRequest] = useState(null);
   const [storeRequestError, setStoreRequestError] = useState('');
   const [storeRequestRefreshing, setStoreRequestRefreshing] = useState(false);
-  const [isRestoringSession, setIsRestoringSession] = useState(() => Boolean(sessionStore.getToken()));
+  const [isRestoringSession, setIsRestoringSession] = useState(false);
   const [sessionRestoreError, setSessionRestoreError] = useState('');
   const [companyProfile, setCompanyProfile] = useState(null);
   const [profileRevision, setProfileRevision] = useState(0);
@@ -99,12 +112,23 @@ function App() {
     } finally { setOtaRefreshing(false); }
   }, []);
 
-  const acceptSession = useCallback(async (token, user) => {
-    sessionStore.setToken(token);
+  const acceptSession = useCallback(async (token, user, refreshToken) => {
+    await sessionStore.setToken(token);
+    if (refreshToken) await sessionStore.setRefreshToken(refreshToken);
+    await sessionStore.setUser(user);
     setIsRestoringSession(true);
     setAuthToken(token);
     setAccountUser(user);
     setSessionRestoreError('');
+
+    if (!sessionStore.getRefreshToken()) {
+      try {
+        const persistentSession = await authApi.createRefreshToken();
+        if (persistentSession?.refreshToken) await sessionStore.setRefreshToken(persistentSession.refreshToken);
+      } catch (error) {
+        console.info('Could not upgrade the existing session to a refresh token yet.', error);
+      }
+    }
 
     let companies;
     try {
@@ -116,7 +140,7 @@ function App() {
         setScreen('DASHBOARD');
       } else {
         const demoUser = sessionStore.getDemoUser() || user;
-        sessionStore.setDemoUser(demoUser);
+        await sessionStore.setDemoUser(demoUser);
         setAccountUser(demoUser);
         setVendor(createDemoVendor(demoUser));
         setStoreRequestError(error.message || 'تعذر التحقق من حالة الطلب. سيظل المتجر التجريبي محفوظًا على هذا الجهاز.');
@@ -127,8 +151,8 @@ function App() {
     if (!Array.isArray(companies)) companies = companies?.items || [];
     const company = companies[0];
     if (!company?.id) {
-      sessionStore.clearCompany();
-      sessionStore.setDemoUser(user);
+      await sessionStore.clearCompany();
+      await sessionStore.setDemoUser(user);
       setCompanyProfile(null);
       setPendingGovernorate(null);
       setStoreRequestError('');
@@ -144,7 +168,8 @@ function App() {
       setIsRestoringSession(false);
       return;
     }
-    sessionStore.clearDemoUser();
+    await sessionStore.setCompany(company);
+    await sessionStore.clearDemoUser();
     if (!company.governorate) {
       setPendingGovernorate({ token, user, company });
       setGovernorateError('');
@@ -158,7 +183,6 @@ function App() {
     setStoreRequestError('');
     setSessionRestoreError('');
     setIsRestoringSession(false);
-    sessionStore.setCompany(company);
     setVendor(companyToVendor(company, user));
     setScreen('DASHBOARD');
   }, []);
@@ -179,21 +203,23 @@ function App() {
       await acceptSession(token, user);
     } catch (error) {
       console.warn('Saved session could not be restored', error);
-      if (error?.status === 401 || error?.status === 404) {
-        // Only discard a session when the server explicitly rejects it.
-        sessionStore.clear();
-        setAuthToken(null);
-      } else {
-        // Offline/server errors are temporary; keep the saved token and allow retry.
+      const cachedCompany = sessionStore.getCompany();
+      const cachedUser = sessionStore.getUser() || sessionStore.getDemoUser();
+      if (cachedCompany?.id && cachedUser) {
+        setAccountUser(cachedUser);
+        setVendor(companyToVendor(cachedCompany, cachedUser));
+        setScreen('DASHBOARD');
+        setSessionRestoreError('');
+      } else if (sessionStore.getDemoUser()) {
         const demoUser = sessionStore.getDemoUser();
-        if (demoUser) {
-          setAccountUser(demoUser);
-          setVendor(createDemoVendor(demoUser));
-          setScreen('DASHBOARD');
-          setSessionRestoreError('');
-        } else {
-          setSessionRestoreError('تحقق من اتصال الإنترنت ثم أعد المحاولة. احتفظنا ببيانات الدخول ولم نسجّل خروجك.');
-        }
+        setAccountUser(demoUser);
+        setVendor(createDemoVendor(demoUser));
+        setScreen('DASHBOARD');
+        setSessionRestoreError('');
+      } else {
+        setSessionRestoreError(error?.status === 401 || error?.status === 404
+          ? 'تعذر التحقق من الجلسة لدى الخادم. لم نسجل خروجك تلقائيًا؛ تحقق من الاتصال أو سجّل الدخول مجددًا عند الحاجة.'
+          : 'تحقق من اتصال الإنترنت ثم أعد المحاولة. احتفظنا ببيانات الدخول ولم نسجّل خروجك.');
       }
     } finally {
       restoreInFlight.current = false;
@@ -206,7 +232,7 @@ function App() {
       ? await authApi.register({ email, password, fullName: vendorName, phone })
       : await authApi.login({ email, password });
     if (!result?.token || !result?.user) throw new Error('استجابة المصادقة لا تحتوي على بيانات المستخدم أو رمز الجلسة.');
-    await acceptSession(result.token, result.user);
+    await acceptSession(result.token, result.user, result.refreshToken);
   };
 
   const handleGoogleAuthComplete = async () => {
@@ -215,7 +241,7 @@ function App() {
       const result = await authApi.google({ idToken });
       if (!result?.token || !result?.user) throw new Error('استجابة المصادقة لا تحتوي على بيانات المستخدم أو رمز الجلسة.');
       pendingGoogleIdToken.current = null;
-      await acceptSession(result.token, result.user);
+      await acceptSession(result.token, result.user, result.refreshToken);
     } catch (error) {
       pendingGoogleIdToken.current = null;
       throw error;
@@ -258,7 +284,7 @@ function App() {
     try {
       const updated = await authApi.setCompanyGovernorate(pendingGovernorate.company.id, governorate);
       const company = { ...pendingGovernorate.company, ...updated };
-      sessionStore.setCompany(company);
+      await sessionStore.setCompany(company);
       setVendor(companyToVendor(company, pendingGovernorate.user));
       setAuthToken(pendingGovernorate.token);
       setPendingGovernorate(null);
@@ -302,9 +328,33 @@ function App() {
   };
 
   useEffect(() => {
+    let active = true;
     recordAppLaunch().catch(() => {});
-    runOtaCheck();
-    void restoreSession();
+    void runOtaCheck();
+    const splashMinimum = new Promise((resolve) => window.setTimeout(resolve, 1800));
+    void (async () => {
+      await Promise.all([initializeMerchantCache(), sessionStore.initialize()]);
+      if (!active) return;
+      const token = sessionStore.getToken();
+      const cachedCompany = sessionStore.getCompany();
+      const cachedUser = sessionStore.getUser() || sessionStore.getDemoUser() || (cachedCompany?.id
+        ? { id: cachedCompany.id, full_name: 'التاجر', email: cachedCompany.email || '' }
+        : null);
+      setAuthToken(token);
+      setAccountUser(cachedUser);
+      if (token && cachedCompany?.id) {
+        setVendor(companyToVendor(cachedCompany, cachedUser));
+        setScreen('DASHBOARD');
+      }
+      if (token) {
+        void restoreSession();
+      } else {
+        setIsRestoringSession(false);
+      }
+      await splashMinimum;
+      if (active) setBooting(false);
+    })();
+    return () => { active = false; };
   }, [restoreSession, runOtaCheck]);
 
   useEffect(() => {
@@ -333,24 +383,10 @@ function App() {
     refreshCompanyProfile();
   }, [vendor?.apiCompanyId, vendor?.companyRole, authToken, refreshCompanyProfile]);
 
-  useEffect(() => {
-    const handleExpiredSession = () => {
-      sessionStore.clear();
-      setAuthToken(null);
-      setVendor(null);
-      setCompanyProfile(null);
-      setPendingGovernorate(null);
-      setAccountUser(null);
-      setStoreRequest(null);
-      setStoreRequestError('');
-      setScreen('DASHBOARD');
-    };
-    window.addEventListener('tager:auth-expired', handleExpiredSession);
-    return () => window.removeEventListener('tager:auth-expired', handleExpiredSession);
-  }, []);
-
   const handleLogout = () => {
-    sessionStore.clear();
+    const refreshToken = sessionStore.getRefreshToken();
+    if (refreshToken) authApi.logout(refreshToken).catch((error) => console.warn('Could not revoke the refresh session during logout.', error));
+    void sessionStore.clear();
     signOutGoogle().catch((error) => console.warn('Firebase sign-out failed', error));
     setAuthToken(null);
     setVendor(null);
@@ -362,8 +398,9 @@ function App() {
     setScreen('DASHBOARD');
   };
 
+  if (booting) return <StartupSplash />;
   if (authToken && !vendor && isRestoringSession) return <SessionRestoreScreen loading />;
-  if (authToken && !vendor && sessionRestoreError) return <SessionRestoreScreen error={sessionRestoreError} onRetry={restoreSession} onUseAnotherAccount={() => { sessionStore.clear(); setAuthToken(null); setSessionRestoreError(''); }} />;
+  if (authToken && !vendor && sessionRestoreError) return <SessionRestoreScreen error={sessionRestoreError} onRetry={restoreSession} onUseAnotherAccount={handleLogout} />;
   if (authToken && pendingGovernorate) return <GovernorateRequiredScreen saving={governorateSaving} error={governorateError} onSubmit={handleGovernorateComplete} onLogout={handleLogout} />;
   if (!authToken) return <RegisterScreen onAuthComplete={handleAuthComplete} onGoogleAuthComplete={handleGoogleAuthComplete} onGoogleAuthRestart={handleGoogleAuthRestart} />;
   return <DashboardLayout currentScreen={screen} onNavigate={setScreen} vendor={vendor} onLogout={handleLogout} otaStatus={otaStatus} onOtaRefresh={runOtaCheck} otaRefreshing={otaRefreshing} profileCompletion={companyProfile?.completion || null} profileLoading={profileLoading} profileLoadError={profileLoadError}>

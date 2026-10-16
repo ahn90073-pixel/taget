@@ -71,3 +71,95 @@
     backdrop-filter: blur(12px);
   }
 }
+
+
+.merchant-startup-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #f8fafc;
+  background: linear-gradient(135deg, #102a43 0%, #0f3d56 48%, #0f766e 100%);
+}
+
+.merchant-startup-splash::before,
+.merchant-startup-splash::after {
+  position: absolute;
+  width: min(76vw, 34rem);
+  aspect-ratio: 1;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 9999px;
+  content: '';
+}
+
+.merchant-startup-splash::before {
+  transform: translate(37%, -34%);
+  box-shadow: 0 0 0 3rem rgb(255 255 255 / 2%), 0 0 0 6rem rgb(255 255 255 / 1%);
+}
+
+.merchant-startup-splash::after {
+  transform: translate(-38%, 46%) scale(.72);
+  border-color: rgb(94 234 212 / 12%);
+}
+
+.merchant-startup-brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding: 2rem;
+  text-align: center;
+  animation: merchant-brand-appear .7s ease-out both;
+}
+
+.merchant-startup-icon {
+  display: grid;
+  width: 4.5rem;
+  height: 4.5rem;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 1.35rem;
+  color: #ccfbf1;
+  background: rgb(255 255 255 / 9%);
+  box-shadow: 0 18px 55px rgb(2 12 27 / 22%);
+  backdrop-filter: blur(10px);
+}
+
+.merchant-startup-brand h1 {
+  margin: 1.2rem 0 0;
+  font-family: Cairo, Tajawal, sans-serif;
+  font-size: clamp(2.8rem, 12vw, 4.2rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -.035em;
+}
+
+.merchant-startup-line {
+  width: 5.75rem;
+  height: 2px;
+  margin-top: 1.15rem;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, #5eead4, #bfdbfe, transparent);
+  box-shadow: 0 0 18px rgb(94 234 212 / 34%);
+}
+
+.merchant-startup-brand p {
+  margin: .9rem 0 0;
+  color: rgb(226 232 240 / 78%);
+  font-family: Tajawal, Cairo, sans-serif;
+  font-size: .95rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+
+@keyframes merchant-brand-appear {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .merchant-startup-brand { animation: none; }
+}

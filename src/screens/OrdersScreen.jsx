@@ -277,8 +277,7 @@ export default function OrdersScreen({ vendor }) {
       return undefined;
     }
     loadOrders();
-    const timer = window.setInterval(() => loadOrders(true), 30000);
-    return () => window.clearInterval(timer);
+    return undefined;
   }, [loadOrders, vendor.isDemo]);
 
   const handleMarkPrepared = async (order) => {
