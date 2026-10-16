@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Bell, CheckCircle2, Clock3, Download, MapPin, Package, Phone, RefreshCw, ShoppingBag, Truck } from 'lucide-react';
+import { Bell, CheckCircle2, Clock3, MapPin, Package, Phone, RefreshCw, Share2, ShoppingBag, Truck } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import { formatEGP, formatNumber } from '@/utils/format';
 import { ordersApi } from '@/api/client';
 
@@ -88,21 +91,20 @@ function createOrderPdfHtml(order, vendorName) {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>طلب ${escapeHtml(order.order_number)}</title>
   <style>
-    @page { size: A4; margin: 14mm; }
-    * { box-sizing: border-box; }
-    body { margin: 0; color: #172033; font: 14px/1.7 Arial, Tahoma, sans-serif; direction: rtl; }
-    main { max-width: 900px; margin: 0 auto; }
-    header { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; padding-bottom:16px; border-bottom:2px solid #0f766e; }
-    h1 { margin:0; font-size:23px; } h2 { margin:0 0 8px; font-size:16px; color:#0f766e; }
-    p { margin:3px 0; } .muted { color:#64748b; font-size:12px; }
-    section { margin-top:18px; padding:14px; border:1px solid #dbe3e8; border-radius:8px; }
-    .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-    table { width:100%; border-collapse:collapse; margin-top:10px; }
-    th,td { border:1px solid #dbe3e8; padding:8px; text-align:right; }
-    th { background:#f0fdfa; }
-    .totals { width:min(360px,100%); margin-right:auto; }
-    .total { font-weight:bold; font-size:16px; color:#0f766e; }
-    @media print { body { print-color-adjust:exact; -webkit-print-color-adjust:exact; } }
+    .pdf-order, .pdf-order * { box-sizing: border-box; }
+    .pdf-order { width: 794px; margin: 0; padding: 0; color: #172033; background: #fff; font: 14px/1.7 Arial, Tahoma, sans-serif; direction: rtl; }
+    .pdf-order main { max-width: 100%; margin: 0 auto; }
+    .pdf-order header { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; padding-bottom:16px; border-bottom:2px solid #0f766e; }
+    .pdf-order h1 { margin:0; font-size:23px; } .pdf-order h2 { margin:0 0 8px; font-size:16px; color:#0f766e; }
+    .pdf-order p { margin:3px 0; } .pdf-order .muted { color:#64748b; font-size:12px; }
+    .pdf-order section { margin-top:18px; padding:14px; border:1px solid #dbe3e8; border-radius:8px; break-inside:avoid; }
+    .pdf-order .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .pdf-order table { width:100%; border-collapse:collapse; margin-top:10px; }
+    .pdf-order th, .pdf-order td { border:1px solid #dbe3e8; padding:8px; text-align:right; }
+    .pdf-order th { background:#f0fdfa; }
+    .pdf-order .totals { width:min(360px,100%); margin-right:auto; }
+    .pdf-order .total { font-weight:bold; font-size:16px; color:#0f766e; }
+    .pdf-order tr { break-inside: avoid; }
   </style>
 </head>
 <body>
@@ -128,15 +130,106 @@ function createOrderPdfHtml(order, vendorName) {
 </html>`;
 }
 
-function openOrderPdf(order, vendorName) {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return false;
-  printWindow.document.open();
-  printWindow.document.write(createOrderPdfHtml(order, vendorName));
-  printWindow.document.close();
-  printWindow.focus();
-  window.setTimeout(() => printWindow.print(), 350);
-  return true;
+function createOrderPdfElement(order, vendorName) {
+  const source = new DOMParser().parseFromString(createOrderPdfHtml(order, vendorName), 'text/html');
+  const main = source.querySelector('main');
+  if (!main) throw new Error('تعذر تجهيز محتوى الطلب.');
+  const element = document.createElement('div');
+  element.className = 'pdf-order pdf-order-export';
+  element.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;background:#fff;z-index:-1;';
+  const style = document.createElement('style');
+  style.textContent = source.querySelector('style')?.textContent || '';
+  element.append(style, main.cloneNode(true));
+  document.body.appendChild(element);
+  return element;
+}
+
+async function createOrderPdfBlob(order, vendorName) {
+  const element = createOrderPdfElement(order, vendorName);
+  try {
+    if (document.fonts?.ready) await document.fonts.ready;
+    const { default: html2pdf } = await import('html2pdf.js');
+    const blob = await html2pdf().set({
+      margin: 12,
+      image: { type: 'jpeg', quality: 0.96 },
+      html2canvas: {
+        scale: 1.5,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        windowWidth: 794,
+        onclone: (clonedDocument) => {
+          const clonedElement = clonedDocument.querySelector('.pdf-order-export');
+          if (clonedElement) {
+            clonedElement.style.position = 'static';
+            clonedElement.style.left = '0';
+            clonedElement.style.top = '0';
+            clonedElement.style.zIndex = 'auto';
+          }
+        },
+      },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'], avoid: ['section', 'tr'] },
+    }).from(element).outputPdf('blob');
+    if (!(blob instanceof Blob) || blob.size === 0) throw new Error('تعذر إنشاء ملف PDF.');
+    return blob;
+  } finally {
+    element.remove();
+  }
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error || new Error('تعذر قراءة ملف PDF.'));
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      const separator = dataUrl.indexOf(',');
+      if (separator < 0) reject(new Error('تعذر تجهيز ملف PDF للمشاركة.'));
+      else resolve(dataUrl.slice(separator + 1));
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+function downloadPdfInBrowser(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+async function shareOrDownloadOrderPdf(blob, filename, orderNumber) {
+  const title = `طلب ${orderNumber}`;
+  if (Capacitor.isNativePlatform()) {
+    const capability = await Share.canShare();
+    if (!capability.value) throw new Error('مشاركة الملفات غير متاحة في هذا الإصدار من التطبيق.');
+    const savedFile = await Filesystem.writeFile({
+      path: `order-pdfs/${filename}`,
+      data: await blobToBase64(blob),
+      directory: Directory.Cache,
+      recursive: true,
+    });
+    await Share.share({
+      title,
+      text: `ملف PDF للطلب ${orderNumber}`,
+      files: [savedFile.uri],
+      dialogTitle: `مشاركة ${title}`,
+    });
+    return 'shared';
+  }
+
+  const file = new File([blob], filename, { type: 'application/pdf' });
+  if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+    await navigator.share({ title, files: [file] });
+    return 'shared';
+  }
+  downloadPdfInBrowser(blob, filename);
+  return 'downloaded';
 }
 
 export default function OrdersScreen({ vendor }) {
@@ -147,6 +240,7 @@ export default function OrdersScreen({ vendor }) {
   const [actionMessage, setActionMessage] = useState('');
   const [newOrder, setNewOrder] = useState(null);
   const [requestingOrderId, setRequestingOrderId] = useState('');
+  const [creatingPdfOrderId, setCreatingPdfOrderId] = useState('');
   const firstLoad = useRef(true);
   const ordersRef = useRef([]);
 
@@ -208,10 +302,26 @@ export default function OrdersScreen({ vendor }) {
     }
   };
 
-  const handlePdfDownload = (order) => {
-    const opened = openOrderPdf(order, vendor.vendorName);
-    if (!opened) setError('تعذر فتح نافذة PDF. اسمح بالنوافذ المنبثقة ثم أعد المحاولة.');
-    else setActionMessage(`افتح نافذة الطباعة واختر «حفظ بصيغة PDF» لتنزيل الطلب ${order.order_number}.`);
+  const handlePdfDownload = async (order) => {
+    setCreatingPdfOrderId(order.id);
+    setError('');
+    setActionMessage('');
+    try {
+      const blob = await createOrderPdfBlob(order, vendor.vendorName);
+      const safeOrderNumber = String(order.order_number || order.id || 'order').replace(/[^a-zA-Z0-9._-]/g, '-');
+      const filename = `order-${safeOrderNumber}.pdf`;
+      const result = await shareOrDownloadOrderPdf(blob, filename, order.order_number);
+      setActionMessage(result === 'shared'
+        ? `تم تجهيز PDF للطلب ${order.order_number}. اختر تطبيقًا لمشاركته أو حفظه.`
+        : `تم تنزيل PDF للطلب ${order.order_number}.`);
+    } catch (requestError) {
+      if (requestError.name === 'AbortError') setActionMessage('تم إلغاء مشاركة ملف PDF.');
+      else if (Capacitor.isNativePlatform() && /not implemented|plugin|unavailable/i.test(requestError.message || '')) {
+        setError('مشاركة PDF تحتاج تحديث تطبيق التاجر إلى إصدار يدعم مشاركة الملفات.');
+      } else setError(requestError.message || 'تعذر إنشاء ملف PDF أو مشاركته. أعد المحاولة.');
+    } finally {
+      setCreatingPdfOrderId('');
+    }
   };
 
   if (vendor.isDemo) {
@@ -223,7 +333,6 @@ export default function OrdersScreen({ vendor }) {
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-xl font-bold text-slate-900">طلبات الشراء</h1>
-          <p className="mt-1 text-sm text-slate-500">اعرض تفاصيل الطلب كاملة. بعد تجهيز الطرد اضغط «تم التجهيز» لإبلاغ الإدارة؛ الإدارة وحدها ترسل إشعار العميل.</p>
         </div>
         <button type="button" onClick={() => loadOrders()} disabled={refreshing} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /> تحديث الطلبات
@@ -237,7 +346,6 @@ export default function OrdersScreen({ vendor }) {
       </div>}
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {actionMessage && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{actionMessage}</div>}
-      <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-900">بعد تجهيز الطلب لدى التاجر، اضغط «تم التجهيز». يظهر الطرد مجهزًا في إشعارات الإدارة؛ زر الإدارة يرسل Push ويفتح مسودة WhatsApp للمراجعة اليدوية.</div>
       {loading && <div className="flex items-center gap-2 rounded-xl border border-brand-100 bg-brand-50 p-4 text-sm text-brand-700"><RefreshCw className="h-4 w-4 animate-spin" />جارٍ تحميل الطلبات...</div>}
       {!loading && !error && orders.length === 0 && <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center"><ShoppingBag className="mx-auto mb-3 h-12 w-12 text-slate-300" /><p className="text-sm text-slate-500">لا توجد طلبات لهذا المتجر حتى الآن.</p></div>}
 
@@ -290,7 +398,7 @@ export default function OrdersScreen({ vendor }) {
             </div>
 
             <div className="flex flex-col gap-2 border-t border-slate-100 p-4 sm:flex-row sm:justify-end sm:px-5">
-              <button type="button" onClick={() => handlePdfDownload(order)} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"><Download className="h-4 w-4" />تحميل الطلب PDF</button>
+              <button type="button" onClick={() => handlePdfDownload(order)} disabled={creatingPdfOrderId === order.id} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"><Share2 className="h-4 w-4" />{creatingPdfOrderId === order.id ? 'جارٍ تجهيز PDF...' : 'مشاركة / تحميل PDF'}</button>
               <button type="button" onClick={() => handleMarkPrepared(order)} disabled={requestDisabled} className="flex items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-slate-300">
                 {requestPending || requestProcessed || shipmentIsActive ? <CheckCircle2 className="h-4 w-4" /> : (requestingOrderId === order.id ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />)}
                 {requestingOrderId === order.id ? 'جارٍ الإرسال...' : requestLabel}

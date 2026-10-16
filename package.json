@@ -1,7 +1,7 @@
 {
   "name": "taget",
   "private": true,
-  "version": "1.1.8",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,12 +18,15 @@
     "@capacitor/android": "^8.0.0",
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.0.0",
+    "@capacitor/filesystem": "^8.1.5",
     "@capacitor/ios": "^8.0.0",
     "@capacitor/push-notifications": "^8.0.0",
+    "@capacitor/share": "^8.0.3",
     "@capawesome/capacitor-live-update": "^8.0.0",
     "@supabase/supabase-js": "^2.57.4",
     "firebase": "^12.19.0",
     "framer-motion": "^14.0.0",
+    "html2pdf.js": "^0.14.0",
     "lucide-react": "^0.446.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
