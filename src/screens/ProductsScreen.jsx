@@ -141,7 +141,9 @@ export default function ProductsScreen({ vendor, token }) {
         });
         setProducts((current) => [saved, ...current.filter((product) => product.id !== saved.id)]);
       } else if (editingProduct) {
-        const updated = await productsApi.update(vendor.apiCompanyId, editingProduct, productData);
+        const updated = selectedImages.length
+          ? await productsApi.updateWithImages(vendor.apiCompanyId, editingProduct, productData, selectedImages)
+          : await productsApi.update(vendor.apiCompanyId, editingProduct, productData);
         setProducts((current) => current.map((product) => product.id === editingProduct ? mapBackendProduct(updated) : product));
       } else {
         const created = selectedImages.length
