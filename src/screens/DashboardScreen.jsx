@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, CheckCircle2, Clock3, Package, RefreshCw, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock3, Package, RefreshCw, XCircle } from 'lucide-react';
 import { mapBackendProduct, productsApi } from '@/api/client';
 import { formatNumber } from '@/utils/format';
 import { listDemoProducts } from '@/lib/demoStore';
@@ -71,11 +71,6 @@ export default function DashboardScreen({ vendor, token }) {
         <h1 className="mt-1 text-2xl font-bold">{vendor.storeName || 'اسم المتجر غير متاح'}</h1>
         {vendor.vendorName && <p className="mt-2 text-sm text-teal-100">{vendor.vendorName}</p>}
       </motion.section>
-
-      <div role="status" className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">
-        <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-brand-600" />
-        <p>{vendor.isDemo ? 'هذه أرقام محلية لمنتجات تجريبية محفوظة على الجهاز فقط؛ لا تُرفع إلى الخادم أو المتجر الحقيقي ولا تُنقل بعد الموافقة.' : 'تعرض هذه اللوحة أعداد المنتجات التي جلبها التطبيق مباشرة من الخادم. لا توفر واجهة التاجر حاليًا بيانات المبيعات أو الطلبات أو المحفظة؛ لذلك لن تظهر هنا أرقام تقديرية أو سجلات تجريبية.'}</p>
-      </div>
 
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {loading && <div className="flex items-center gap-2 rounded-xl border border-brand-100 bg-brand-50 p-3 text-sm text-brand-700"><RefreshCw className="h-4 w-4 animate-spin" />{vendor.isDemo ? 'جارٍ تحميل المنتجات التجريبية من الجهاز...' : 'جارٍ تحميل بيانات المتجر من الخادم...'}</div>}
