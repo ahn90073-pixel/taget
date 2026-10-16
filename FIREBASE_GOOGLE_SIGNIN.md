@@ -11,8 +11,11 @@
 - فعّل Google ضمن Firebase Authentication في المشروع `tager-z`.
 - تأكد من وجود Android app بمعرّف الحزمة `com.taget.app` في مشروع Firebase نفسه.
 - أضف بصمات SHA-1 وSHA-256 لشهادة Debug وشهادة Release أو Play App Signing المستخدمة فعليًا، ثم نزّل ملف `google-services.json` المحدّث.
-- عند ظهور `activity is cancelled by the user` بعد اختيار الحساب، تحقق من بصمة SHA-1 للتطبيق المثبّت. APK الاختبار Debug الناتج عن GitHub Actions يستخدم مفتاح Debug مؤقتًا؛ اختبر نسخة Release الموقعة بالمفتاح المسجل في Firebase، أو أضف بصمة Play App Signing إذا كان التوزيع من Google Play.
+- عند ظهور `activity is cancelled by the user` بعد اختيار الحساب، قارن SHA-1 لشهادة التطبيق المثبّت بالبصمة المسجلة في Firebase. APK الـDebug في GitHub Actions قد يستخدم مفتاحًا مؤقتًا؛ إذا لم تكن بصمته مسجلة فلن يُرفع كـartifact. استخدم Release الموقّع أو أضف بصمة Debug ثابتة إلى Firebase.
+- يتحقق workflow من شهادة Release قبل رفعها، ويوقف البناء إذا لم تطابق أي Android OAuth SHA-1 في `google-services.json`. إذا كان التوزيع عبر Google Play، أضف أيضًا بصمة **Play App Signing**؛ قد تختلف عن شهادة ملف Release المرفوع إلى Play.
 - يوجد إعداد Firebase الخاص بتطبيق العميل في `android/app/google-services.json` ضمن المستودع، ويقرأه Gradle مباشرة عند البناء؛ لا حاجة إلى GitHub Actions Secret له.
 - يحتوي الملف على إعدادات Firebase العامة الخاصة بالعميل فقط، وليس مفتاح خدمة أو بيانات اعتماد خاصة. يتحقق سير البناء من المشروع `tager-z` ومعرّف الحزمة `com.taget.app` قبل التجميع.
 
-يُضبط Firebase project ID غير السري على Worker باسم `FIREBASE_PROJECT_ID`. تُطبق Migration `0005_firebase_google_merchant_auth.sql` من سير عمل نشر `tagerbackend` قبل تحديث Worker. بعد استبدال `google-services.json` يجب بناء APK جديد وتثبيته؛ لا يحدّث OTA إعداد Google OAuth الأصلي داخل APK. يتحقق سير بناء Android من وجود Android وWeb OAuth clients لتجنب إخراج حزمة إعدادها ناقص.
+يُضبط Firebase project ID غير السري على Worker باسم `FIREBASE_PROJECT_ID`. تُطبق Migration `0005_firebase_google_merchant_auth.sql` من سير عمل نشر `tagerbackend` قبل تحديث Worker. بعد استبدال `google-services.json` يجب بناء APK جديد وتثبيته؛ لا يحدّث OTA إعداد Google OAuth الأصلي داخل APK. يتحقق سير بناء Android من وجود Android وWeb OAuth clients ومن مطابقة بصمات APK قبل رفع artifacts.
+
+لكل إصدار Android جديد، زِد `versionCode` و`versionName` في `android/app/build.gradle`، ثم انشر GitHub Release بعلامة تطابق الاسم مثل `v1.1.7`. يبني workflow النسخة من tag الإصدار ويرفق `tager-<version>-release.apk` و`tager-<version>-release.aab` تلقائيًا بعد نجاح التحقق.
