@@ -115,6 +115,12 @@ export const productsApi = {
     return apiRequest(`/api/companies/${encodeURIComponent(companyId)}/products`, { method: 'POST', body: form });
   },
   update: (companyId, productId, data) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/products/${encodeURIComponent(productId)}`, { method: 'PUT', body: data }),
+  updateWithImages: (companyId, productId, data, files) => {
+    const form = new FormData();
+    form.append('product', JSON.stringify(data));
+    files.forEach((file) => form.append('images', file, file.name));
+    return apiRequest(`/api/companies/${encodeURIComponent(companyId)}/products/${encodeURIComponent(productId)}`, { method: 'PUT', body: form });
+  },
   remove: (companyId, productId) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/products/${encodeURIComponent(productId)}`, { method: 'DELETE' }),
 };
 
