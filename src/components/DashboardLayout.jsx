@@ -147,12 +147,11 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {canEnablePush && <div className="flex max-w-[220px] flex-col items-end gap-1 sm:max-w-sm">
+            {canEnablePush && <div className="flex items-center">
               <button type="button" onClick={handlePushActivation} disabled={pushStatus === 'activating'} className="flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-bold text-brand-700 transition hover:bg-brand-100 disabled:cursor-default disabled:opacity-70" title="تفعيل إشعارات الطلبات">
                 <Bell className="h-4 w-4" />
                 <span className="hidden sm:inline">{pushStatus === 'activating' ? 'جارٍ التفعيل' : pushStatus === 'enabled' ? 'الإشعارات مفعلة' : pushStatus === 'denied' ? 'السماح بالإشعارات' : pushStatus === 'unavailable' ? 'فعّلها من تطبيق الهاتف' : pushStatus === 'error' ? 'إعادة المحاولة' : 'تفعيل الإشعارات'}</span>
               </button>
-              <p className="text-right text-[10px] leading-4 text-slate-500">عند التفعيل يُحفظ اسم الشركة ومدينة تقريبية من IP مع التوكن؛ دون GPS أو حفظ عنوان IP الخام.</p>
             </div>}
             <div className="flex items-center gap-2 pr-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white">{vendor.vendorName.charAt(0)}</div>
