@@ -17,3 +17,5 @@
 - يحتوي الملف على إعدادات Firebase العامة الخاصة بالعميل فقط، وليس مفتاح خدمة أو بيانات اعتماد خاصة. يتحقق سير البناء من المشروع `tager-z` ومعرّف الحزمة `com.taget.app` قبل التجميع.
 
 يُضبط Firebase project ID غير السري على Worker باسم `FIREBASE_PROJECT_ID`. تُطبق Migration `0005_firebase_google_merchant_auth.sql` من سير عمل نشر `tagerbackend` قبل تحديث Worker. بعد استبدال `google-services.json` يجب بناء APK جديد وتثبيته؛ لا يحدّث OTA إعداد Google OAuth الأصلي داخل APK. يتحقق سير بناء Android من وجود Android وWeb OAuth clients ومن مطابقة بصمات APK قبل رفع artifacts.
+
+لكل إصدار Android جديد، زِد `versionCode` و`versionName` في `android/app/build.gradle`، ثم انشر GitHub Release بعلامة تطابق الاسم مثل `v1.1.7`. يبني workflow النسخة من tag الإصدار ويرفق `tager-<version>-release.apk` و`tager-<version>-release.aab` تلقائيًا بعد نجاح التحقق.
