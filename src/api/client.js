@@ -299,6 +299,7 @@ export const companyProfileApi = {
 
 export const notificationsApi = {
   registerToken: (companyId, data) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/notifications/token`, { method: 'POST', body: data }),
+  saveLocation: (companyId, location) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/location`, { method: 'PUT', body: location }),
 };
 
 export const productsApi = {

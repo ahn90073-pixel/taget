@@ -8,6 +8,8 @@ import {
   Phone,
   ShieldCheck,
   Store,
+  MapPin,
+  CheckCircle2,
   User,
 } from 'lucide-react';
 import { isAndroidNative, isGoogleNativeAuthAvailable } from '@/lib/firebaseAuth';
@@ -20,10 +22,23 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [storeLocation, setStoreLocation] = useState(null);
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [locationMessage, setLocationMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const isLogin = mode === 'login';
 
+  const handleRequestLocation = () => {
+    setLocationMessage('');
+    if (!navigator.geolocation) { setLocationMessage('متصفحك لا يدعم تحديد الموقع. يمكنك المتابعة دون مشاركة موقعك.'); return; }
+    setLocationBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => { setStoreLocation({ latitude: coords.latitude, longitude: coords.longitude }); setLocationMessage('تم تحديد الموقع. لن تتم مشاركته إلا مع إدارة المنصة لتسهيل الشحن.'); setLocationBusy(false); },
+      (err) => { setLocationMessage(err.code === 1 ? 'لم يتم السماح بالوصول للموقع. يمكنك تغيير الإذن من إعدادات الجهاز أو المتابعة دون الموقع.' : 'تعذر تحديد الموقع الآن. يمكنك المحاولة لاحقًا أو المتابعة دون مشاركة موقعك.'); setLocationBusy(false); },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
+    );
+  };
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
@@ -38,6 +53,7 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
           email: email.trim().toLowerCase(),
           phone: phone.trim(),
           password,
+          storeLocation,
         });
       }
     } catch (err) {
@@ -174,6 +190,22 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
                     )}
                     <Field icon={<Mail className="h-5 w-5" />} label="البريد الإلكتروني" value={email} onChange={setEmail} placeholder="merchant@email.com" className={inputClass} type="email" required />
                     <Field icon={<Lock className="h-5 w-5" />} label="كلمة المرور" value={password} onChange={setPassword} placeholder="6 أحرف على الأقل" className={inputClass} type="password" minLength={6} required />
+                    {!isLogin && (
+                      <section className="rounded-2xl border border-brand-100 bg-brand-50/70 p-4" aria-label="مشاركة موقع المتجر">
+                        <div className="flex items-start gap-3">
+                          <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" aria-hidden="true" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-slate-800">هل ترغب في إضافة موقع المتجر؟</p>
+                            <p className="mt-1 text-xs leading-6 text-slate-600">مشاركة الموقع اختيارية، وتساعد فريق الإدارة ومندوب الشحن على الوصول إليك وتسهيل تجهيز الطلبات وتسريع الاستجابة. لن نطلب الإذن إلا بعد ضغطك على الزر، ويمكنك المتابعة بدونه.</p>
+                            <button type="button" onClick={handleRequestLocation} disabled={locationBusy || Boolean(storeLocation)} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl border border-brand-200 bg-white px-3 py-2 text-xs font-bold text-brand-800 hover:bg-brand-100 disabled:opacity-60">
+                              {storeLocation ? <CheckCircle2 className="h-4 w-4" /> : <MapPin className="h-4 w-4" />}
+                              {locationBusy ? 'جارٍ تحديد الموقع...' : storeLocation ? 'تم تحديد الموقع' : 'السماح بتحديد موقع المتجر'}
+                            </button>
+                            {locationMessage && <p role="status" className="mt-2 text-xs leading-5 text-slate-600">{locationMessage}</p>}
+                          </div>
+                        </div>
+                      </section>
+                    )}
                     <button
                       type="submit"
                       disabled={busy}

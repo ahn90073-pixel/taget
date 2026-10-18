@@ -5,7 +5,7 @@ import { recordAppLaunch } from '@/plugins/nativeStorage';
 import { initializeMerchantCache } from '@/lib/merchantLocalCache';
 import { checkForOtaUpdate } from '@/utils/liveUpdates';
 import { signInWithGoogle, signOutGoogle } from '@/lib/firebaseAuth';
-import { API_BASE_URL, authApi, companyProfileApi, sessionStore } from '@/api/client';
+import { API_BASE_URL, authApi, companyProfileApi, sessionStore, notificationsApi } from '@/api/client';
 import RegisterScreen from '@/screens/RegisterScreen';
 import DashboardLayout from '@/components/DashboardLayout';
 import DashboardScreen from '@/screens/DashboardScreen';
@@ -227,11 +227,14 @@ function App() {
     }
   }, [acceptSession]);
 
-  const handleAuthComplete = async ({ mode, vendorName, email, phone, password }) => {
+  const handleAuthComplete = async ({ mode, vendorName, email, phone, password, storeLocation }) => {
     const result = mode === 'register'
       ? await authApi.register({ email, password, fullName: vendorName, phone })
       : await authApi.login({ email, password });
     if (!result?.token || !result?.user) throw new Error('استجابة المصادقة لا تحتوي على بيانات المستخدم أو رمز الجلسة.');
+    if (mode === 'register' && storeLocation && result.user?.id) {
+      try { window.localStorage.setItem(`taget_pending_store_location_${result.user.id}`, JSON.stringify(storeLocation)); } catch { /* device storage may be unavailable */ }
+    }
     await acceptSession(result.token, result.user, result.refreshToken);
   };
 
@@ -326,6 +329,18 @@ function App() {
       } : current);
     }
   };
+
+  useEffect(() => {
+    const companyId = vendor?.apiCompanyId;
+    const userId = accountUser?.id;
+    if (!companyId || !userId) return;
+    let location;
+    try { location = JSON.parse(window.localStorage.getItem(`taget_pending_store_location_${userId}`) || 'null'); } catch { return; }
+    if (!location) return;
+    notificationsApi.saveLocation(companyId, location).then(() => {
+      window.localStorage.removeItem(`taget_pending_store_location_${userId}`);
+    }).catch((error) => console.warn('Could not sync the merchant-approved location yet.', error));
+  }, [vendor?.apiCompanyId, accountUser?.id]);
 
   useEffect(() => {
     let active = true;
