@@ -300,6 +300,7 @@ export const companyProfileApi = {
 export const notificationsApi = {
   registerToken: (companyId, data) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/notifications/token`, { method: 'POST', body: data }),
   saveLocation: (companyId, location) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/location`, { method: 'PUT', body: location }),
+  removeLocation: (companyId) => apiRequest(`/api/companies/${encodeURIComponent(companyId)}/location`, { method: 'DELETE' }),
 };
 
 export const productsApi = {

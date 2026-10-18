@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  AlertTriangle, Building2, CheckCircle2, CreditCard, Download, FileCheck2,
-  FileText, Home, Loader2, MapPin, Save, ShieldCheck, Upload, Wallet,
+  AlertTriangle, Building2, CheckCircle2, CreditCard, Download, ExternalLink, FileCheck2,
+  FileText, Home, Loader2, MapPin, Save, ShieldCheck, Trash2, Upload, Wallet,
 } from 'lucide-react';
-import { companyProfileApi } from '@/api/client';
+import { companyProfileApi, notificationsApi } from '@/api/client';
 import { egyptGovernorates } from '@/data/egyptGovernorates';
 
 const documentTypes = [
@@ -46,9 +46,67 @@ export default function CompanyProfileScreen({ companyId, vendor, profile, loadi
   const [downloading, setDownloading] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [shippingLocation, setShippingLocation] = useState(null);
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [locationMessage, setLocationMessage] = useState('');
   const documents = profile?.documents || [];
   const completion = profile?.completion || { percentage: 0, completedCount: 0, totalCount: 8, isComplete: false, checks: [] };
   const documentByType = new Map(documents.map((document) => [document.document_type || document.documentType, document]));
+
+  useEffect(() => {
+    const company = profile?.company || {};
+    if (company.shipping_location_latitude != null && company.shipping_location_longitude != null) {
+      setShippingLocation({
+        latitude: Number(company.shipping_location_latitude),
+        longitude: Number(company.shipping_location_longitude),
+        sharedAt: company.shipping_location_consent_at || null,
+      });
+    } else setShippingLocation(null);
+  }, [profile]);
+
+  const requestShippingLocation = () => {
+    setLocationMessage('');
+    if (!navigator.geolocation) {
+      setLocationMessage('هذا الجهاز لا يدعم تحديد الموقع. يمكنك متابعة استخدام التطبيق دون مشاركة موقعك.');
+      return;
+    }
+    setLocationBusy(true);
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      void (async () => {
+        try {
+          const location = { latitude: coords.latitude, longitude: coords.longitude };
+          const saved = await notificationsApi.saveLocation(companyId, location);
+          setShippingLocation({ ...location, sharedAt: saved?.shared_at || new Date().toISOString() });
+          setLocationMessage('تم حفظ الموقع بموافقتك. سيظهر لفريق الإدارة لتنسيق الشحن، ولن يُرسل تلقائيًا لشركة الشحن أو المندوب.');
+          await onRetry?.();
+        } catch (requestError) {
+          setLocationMessage(requestError.message || 'تعذر حفظ الموقع الآن. تحقق من الاتصال وحاول مرة أخرى.');
+        } finally {
+          setLocationBusy(false);
+        }
+      })();
+    }, (geoError) => {
+      setLocationBusy(false);
+      setLocationMessage(geoError.code === 1
+        ? 'لم يتم السماح بالوصول للموقع. يمكنك تفعيل الإذن من إعدادات الجهاز أو المتابعة دون مشاركة موقعك.'
+        : 'تعذر تحديد الموقع الآن. تحقق من إعدادات الموقع وحاول مرة أخرى.');
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+  };
+
+  const revokeShippingLocation = async () => {
+    setLocationBusy(true);
+    setLocationMessage('');
+    try {
+      await notificationsApi.removeLocation(companyId);
+      setShippingLocation(null);
+      setLocationMessage('تم حذف موقع المتجر وإيقاف مشاركته مع الإدارة.');
+      await onRetry?.();
+    } catch (requestError) {
+      setLocationMessage(requestError.message || 'تعذر حذف الموقع الآن. حاول مرة أخرى.');
+    } finally {
+      setLocationBusy(false);
+    }
+  };
 
   const change = (field, value) => setForm((current) => ({ ...current, [field]: value }));
   const changeAddress = (field, value) => setForm((current) => ({
@@ -148,6 +206,27 @@ export default function CompanyProfileScreen({ companyId, vendor, profile, loadi
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" /><p className="font-semibold">اكتمل الملف التجاري. تم حفظ البيانات والمستندات، ويظل أي اعتماد رسمي خاضعًا لمراجعة المنصة.</p>
         </div>
       )}
+      <section className="rounded-2xl border border-brand-100 bg-white p-5 shadow-sm sm:p-6" aria-label="إذن موقع المتجر للشحن">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><MapPin className="h-5 w-5" /></div>
+            <div>
+              <h2 className="font-bold text-slate-900">موقع المتجر لتسهيل الشحن</h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">السماح اختياري؛ يساعد فريق الإدارة ومندوب الشحن على الوصول للمتجر وتسريع الاستجابة للطلبات. لن يُطلب إذن الموقع إلا بعد ضغطك على الزر، ولن يُرسل موقعك تلقائيًا لشركة الشحن أو المندوب.</p>
+              {shippingLocation && <>
+                <p className="mt-2 text-xs font-semibold text-financial-700">موقع المتجر محفوظ بموافقتك</p>
+                <p dir="ltr" className="mt-1 text-xs text-slate-500">{shippingLocation.latitude.toFixed(6)}, {shippingLocation.longitude.toFixed(6)}</p>
+                <a href={`https://www.google.com/maps?q=${shippingLocation.latitude},${shippingLocation.longitude}`} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:underline"><ExternalLink className="h-3.5 w-3.5" />عرض على الخريطة</a>
+              </>}
+              {locationMessage && <p role="status" className="mt-2 text-xs leading-5 text-slate-600">{locationMessage}</p>}
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <button type="button" onClick={requestShippingLocation} disabled={locationBusy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-brand-700 disabled:cursor-wait disabled:opacity-60"><MapPin className="h-4 w-4" />{locationBusy ? 'جارٍ تحديد الموقع...' : shippingLocation ? 'تحديث الموقع' : 'السماح بموقع المتجر'}</button>
+            {shippingLocation && <button type="button" onClick={revokeShippingLocation} disabled={locationBusy} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"><Trash2 className="h-4 w-4" />حذف الموقع</button>}
+          </div>
+        </div>
+      </section>
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-700">{error}</div>}
       {success && <div role="status" className="rounded-xl border border-financial-200 bg-financial-50 p-3 text-sm leading-6 text-financial-800">{success}</div>}
 

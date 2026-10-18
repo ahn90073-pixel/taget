@@ -10,6 +10,7 @@ import appPackage from '../../package.json';
 export default function DashboardLayout({ currentScreen, onNavigate, vendor, children, otaStatus, onOtaRefresh, otaRefreshing, onLogout, profileCompletion, profileLoading, profileLoadError }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pushStatus, setPushStatus] = useState('idle');
+  const [showPushPrompt, setShowPushPrompt] = useState(false);
   const canManageProfile = vendor?.isDemo || ['owner', 'admin'].includes(vendor?.companyRole);
   const canViewWallet = vendor?.isDemo || ['owner', 'admin'].includes(vendor?.companyRole);
   const profileScreen = vendor?.isDemo ? 'STORE_PROFILE' : 'COMPANY_PROFILE';
@@ -34,6 +35,8 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
 
   const handlePushActivation = async () => {
     if (!canEnablePush || pushStatus === 'activating') return;
+    try { window.localStorage.setItem(`taget_push_prompt_seen_${vendor.apiCompanyId}`, '1'); } catch { /* Permission request can continue without local storage. */ }
+    setShowPushPrompt(false);
     setPushStatus('activating');
     try {
       const result = await initializePushNotifications({
@@ -54,6 +57,20 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
       console.warn('Merchant notification activation failed', error);
       setPushStatus('error');
     }
+  };
+
+  useEffect(() => {
+    if (!canEnablePush || !Capacitor.isNativePlatform()) return;
+    try {
+      if (window.localStorage.getItem(`taget_push_prompt_seen_${vendor.apiCompanyId}`) !== '1') setShowPushPrompt(true);
+    } catch {
+      setShowPushPrompt(true);
+    }
+  }, [canEnablePush, vendor?.apiCompanyId]);
+
+  const dismissPushPrompt = () => {
+    try { window.localStorage.setItem(`taget_push_prompt_seen_${vendor.apiCompanyId}`, '1'); } catch { /* Dismiss for this session if storage is unavailable. */ }
+    setShowPushPrompt(false);
   };
 
   useEffect(() => {
@@ -185,6 +202,17 @@ export default function DashboardLayout({ currentScreen, onNavigate, vendor, chi
         )}
         <main className="p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
+      {showPushPrompt && canEnablePush && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4" role="presentation">
+          <section role="dialog" aria-modal="true" aria-labelledby="push-permission-title" className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-7">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><Bell className="h-7 w-7" /></div>
+            <h2 id="push-permission-title" className="mt-4 text-center text-lg font-bold text-slate-900">فعّل إشعارات الطلبات</h2>
+            <p className="mt-2 text-center text-sm leading-7 text-slate-600">نرسل إليك إشعارات مهمة عن الطلبات وتحديثات الشحن حتى تتابع متجرك في الوقت المناسب. الإذن اختياري، ولن نعرض نافذة إذن النظام إلا بعد اختيارك «تفعيل الإشعارات».</p>
+            <button type="button" onClick={handlePushActivation} disabled={pushStatus === 'activating'} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white hover:bg-brand-700 disabled:opacity-60"><Bell className="h-4 w-4" />{pushStatus === 'activating' ? 'جارٍ التفعيل...' : 'تفعيل الإشعارات'}</button>
+            <button type="button" onClick={dismissPushPrompt} className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold text-slate-500 hover:bg-slate-50">ليس الآن</button>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

@@ -50,7 +50,7 @@ export async function initializePushNotifications({ onToken } = {}) {
       }));
 
       let permissions = await PushNotifications.checkPermissions();
-      if (permissions.receive === 'prompt') {
+      if (permissions.receive === 'prompt' || permissions.receive === 'prompt-with-rationale') {
         permissions = await PushNotifications.requestPermissions();
       }
       if (permissions.receive !== 'granted') {
