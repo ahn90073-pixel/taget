@@ -136,7 +136,9 @@ function createOrderPdfElement(order, vendorName) {
   if (!main) throw new Error('تعذر تجهيز محتوى الطلب.');
   const element = document.createElement('div');
   element.className = 'pdf-order pdf-order-export';
-  element.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;background:#fff;z-index:-1;';
+  // Keep the source in the WebView viewport. Android WebView may otherwise
+  // rasterize an off-canvas html2canvas clone as a completely white page.
+  element.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#fff;z-index:-1;visibility:hidden;pointer-events:none;';
   const style = document.createElement('style');
   style.textContent = source.querySelector('style')?.textContent || '';
   element.append(style, main.cloneNode(true));
@@ -157,6 +159,9 @@ async function createOrderPdfBlob(order, vendorName) {
         backgroundColor: '#ffffff',
         useCORS: true,
         windowWidth: 794,
+        windowHeight: Math.max(element.scrollHeight, window.innerHeight || 1024),
+        scrollX: 0,
+        scrollY: 0,
         onclone: (clonedDocument) => {
           const clonedElement = clonedDocument.querySelector('.pdf-order-export');
           if (clonedElement) {
@@ -164,6 +169,12 @@ async function createOrderPdfBlob(order, vendorName) {
             clonedElement.style.left = '0';
             clonedElement.style.top = '0';
             clonedElement.style.zIndex = 'auto';
+            clonedElement.style.display = 'block';
+            clonedElement.style.visibility = 'visible';
+            clonedElement.style.opacity = '1';
+            clonedElement.style.transform = 'none';
+            clonedElement.style.width = '794px';
+            clonedElement.style.backgroundColor = '#ffffff';
           }
         },
       },
@@ -171,6 +182,8 @@ async function createOrderPdfBlob(order, vendorName) {
       pagebreak: { mode: ['css', 'legacy'], avoid: ['section', 'tr'] },
     }).from(element).outputPdf('blob');
     if (!(blob instanceof Blob) || blob.size === 0) throw new Error('تعذر إنشاء ملف PDF.');
+    const signature = await blob.slice(0, 5).text();
+    if (signature !== '%PDF-') throw new Error('ملف PDF الناتج غير صالح. أعد المحاولة.');
     return blob;
   } finally {
     element.remove();
