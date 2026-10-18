@@ -4,6 +4,7 @@ import { CheckCircle2, Clock3, Package, RefreshCw, XCircle } from 'lucide-react'
 import { mapBackendProduct, productsApi } from '@/api/client';
 import { formatNumber } from '@/utils/format';
 import { listDemoProducts } from '@/lib/demoStore';
+import ShippingLocationCard from '@/components/ShippingLocationCard';
 
 const statusLabels = {
   active: 'نشط',
@@ -71,6 +72,8 @@ export default function DashboardScreen({ vendor, token }) {
         <h1 className="mt-1 text-2xl font-bold">{vendor.storeName || 'اسم المتجر غير متاح'}</h1>
         {vendor.vendorName && <p className="mt-2 text-sm text-teal-100">{vendor.vendorName}</p>}
       </motion.section>
+
+      <ShippingLocationCard vendor={vendor} />
 
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {loading && <div className="flex items-center gap-2 rounded-xl border border-brand-100 bg-brand-50 p-3 text-sm text-brand-700"><RefreshCw className="h-4 w-4 animate-spin" />{vendor.isDemo ? 'جارٍ تحميل المنتجات التجريبية من الجهاز...' : 'جارٍ تحميل بيانات المتجر من الخادم...'}</div>}

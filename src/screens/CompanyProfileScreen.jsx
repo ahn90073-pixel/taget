@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { companyProfileApi, notificationsApi } from '@/api/client';
 import { egyptGovernorates } from '@/data/egyptGovernorates';
+import { getStoreLocation } from '@/utils/storeLocation';
 
 const documentTypes = [
   { key: 'nationalId', label: 'البطاقة الشخصية لصاحب الحساب', icon: ShieldCheck },
@@ -64,33 +65,24 @@ export default function CompanyProfileScreen({ companyId, vendor, profile, loadi
     } else setShippingLocation(null);
   }, [profile]);
 
-  const requestShippingLocation = () => {
+  const requestShippingLocation = async () => {
     setLocationMessage('');
-    if (!navigator.geolocation) {
-      setLocationMessage('هذا الجهاز لا يدعم تحديد الموقع. يمكنك متابعة استخدام التطبيق دون مشاركة موقعك.');
-      return;
-    }
     setLocationBusy(true);
-    navigator.geolocation.getCurrentPosition(({ coords }) => {
-      void (async () => {
-        try {
-          const location = { latitude: coords.latitude, longitude: coords.longitude };
-          const saved = await notificationsApi.saveLocation(companyId, location);
-          setShippingLocation({ ...location, sharedAt: saved?.shared_at || new Date().toISOString() });
-          setLocationMessage('تم حفظ الموقع بموافقتك. سيظهر لفريق الإدارة لتنسيق الشحن، ولن يُرسل تلقائيًا لشركة الشحن أو المندوب.');
-          await onRetry?.();
-        } catch (requestError) {
-          setLocationMessage(requestError.message || 'تعذر حفظ الموقع الآن. تحقق من الاتصال وحاول مرة أخرى.');
-        } finally {
-          setLocationBusy(false);
-        }
-      })();
-    }, (geoError) => {
+    try {
+      const location = await getStoreLocation();
+      const saved = await notificationsApi.saveLocation(companyId, location);
+      try {
+        window.localStorage.setItem(`taget_saved_store_location_${vendor?.userId}`, JSON.stringify(location));
+        window.localStorage.removeItem(`taget_pending_store_location_${vendor?.userId}`);
+      } catch { /* The server profile remains authoritative. */ }
+      setShippingLocation({ ...location, sharedAt: saved?.shared_at || new Date().toISOString() });
+      setLocationMessage('تم حفظ الموقع بموافقتك. سيظهر لفريق الإدارة لتنسيق الشحن، ولن يُرسل تلقائيًا لشركة الشحن أو المندوب.');
+      await onRetry?.();
+    } catch (requestError) {
+      setLocationMessage(requestError.message || 'تعذر حفظ الموقع الآن. تحقق من الاتصال وحاول مرة أخرى.');
+    } finally {
       setLocationBusy(false);
-      setLocationMessage(geoError.code === 1
-        ? 'لم يتم السماح بالوصول للموقع. يمكنك تفعيل الإذن من إعدادات الجهاز أو المتابعة دون مشاركة موقعك.'
-        : 'تعذر تحديد الموقع الآن. تحقق من إعدادات الموقع وحاول مرة أخرى.');
-    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+    }
   };
 
   const revokeShippingLocation = async () => {
@@ -98,6 +90,10 @@ export default function CompanyProfileScreen({ companyId, vendor, profile, loadi
     setLocationMessage('');
     try {
       await notificationsApi.removeLocation(companyId);
+      try {
+        window.localStorage.removeItem(`taget_saved_store_location_${vendor?.userId}`);
+        window.localStorage.removeItem(`taget_pending_store_location_${vendor?.userId}`);
+      } catch { /* non-critical */ }
       setShippingLocation(null);
       setLocationMessage('تم حذف موقع المتجر وإيقاف مشاركته مع الإدارة.');
       await onRetry?.();

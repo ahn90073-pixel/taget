@@ -138,7 +138,7 @@ function createOrderPdfElement(order, vendorName) {
   element.className = 'pdf-order pdf-order-export';
   // Keep the source in the WebView viewport. Android WebView may otherwise
   // rasterize an off-canvas html2canvas clone as a completely white page.
-  element.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#fff;z-index:-1;visibility:hidden;pointer-events:none;';
+  element.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#fff;z-index:40;pointer-events:none;';
   const style = document.createElement('style');
   style.textContent = source.querySelector('style')?.textContent || '';
   element.append(style, main.cloneNode(true));
@@ -150,37 +150,74 @@ async function createOrderPdfBlob(order, vendorName) {
   const element = createOrderPdfElement(order, vendorName);
   try {
     if (document.fonts?.ready) await document.fonts.ready;
-    const { default: html2pdf } = await import('html2pdf.js');
-    const blob = await html2pdf().set({
-      margin: 12,
-      image: { type: 'jpeg', quality: 0.96 },
-      html2canvas: {
-        scale: 1.5,
-        backgroundColor: '#ffffff',
-        useCORS: true,
-        windowWidth: 794,
-        windowHeight: Math.max(element.scrollHeight, window.innerHeight || 1024),
-        scrollX: 0,
-        scrollY: 0,
-        onclone: (clonedDocument) => {
-          const clonedElement = clonedDocument.querySelector('.pdf-order-export');
-          if (clonedElement) {
-            clonedElement.style.position = 'static';
-            clonedElement.style.left = '0';
-            clonedElement.style.top = '0';
-            clonedElement.style.zIndex = 'auto';
-            clonedElement.style.display = 'block';
-            clonedElement.style.visibility = 'visible';
-            clonedElement.style.opacity = '1';
-            clonedElement.style.transform = 'none';
-            clonedElement.style.width = '794px';
-            clonedElement.style.backgroundColor = '#ffffff';
-          }
-        },
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
+    const scale = 1.5;
+    const canvas = await html2canvas(element, {
+      scale,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      windowWidth: 794,
+      windowHeight: Math.max(element.scrollHeight, window.innerHeight || 1024),
+      scrollX: 0,
+      scrollY: 0,
+      onclone: (clonedDocument) => {
+        const clonedElement = clonedDocument.querySelector('.pdf-order-export');
+        if (clonedElement) {
+          clonedElement.style.position = 'static';
+          clonedElement.style.left = '0';
+          clonedElement.style.top = '0';
+          clonedElement.style.zIndex = 'auto';
+          clonedElement.style.display = 'block';
+          clonedElement.style.visibility = 'visible';
+          clonedElement.style.opacity = '1';
+          clonedElement.style.transform = 'none';
+          clonedElement.style.width = '794px';
+          clonedElement.style.backgroundColor = '#ffffff';
+        }
       },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'], avoid: ['section', 'tr'] },
-    }).from(element).outputPdf('blob');
+    });
+    if (!canvas.width || !canvas.height) throw new Error('تعذر التقاط محتوى الطلب لإنشاء PDF.');
+    const pixels = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, canvas.width, canvas.height).data;
+    let visiblePixelSamples = 0;
+    for (let y = 0; y < canvas.height; y += 8) {
+      for (let x = 0; x < canvas.width; x += 8) {
+        const index = (y * canvas.width + x) * 4;
+        if (pixels[index] < 245 || pixels[index + 1] < 245 || pixels[index + 2] < 245) visiblePixelSamples += 1;
+      }
+    }
+    if (visiblePixelSamples < 20) throw new Error('لم يظهر محتوى الطلب في معاينة PDF. أعد المحاولة بعد تحديث التطبيق.');
+
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+    const margin = 12;
+    const printableWidth = 210 - (margin * 2);
+    const printableHeight = 297 - (margin * 2);
+    const maximumSliceHeight = Math.floor(canvas.width * printableHeight / printableWidth);
+    const safeBreaks = Array.from(element.querySelectorAll('section, tr'))
+      .map((node) => Math.round((node.getBoundingClientRect().bottom - element.getBoundingClientRect().top) * scale))
+      .filter((point) => point > 0)
+      .sort((a, b) => a - b);
+    let startY = 0;
+    let pageIndex = 0;
+    while (startY < canvas.height) {
+      const targetY = Math.min(startY + maximumSliceHeight, canvas.height);
+      let endY = targetY;
+      if (targetY < canvas.height) {
+        const candidate = safeBreaks.filter((point) => point > startY + maximumSliceHeight * 0.65 && point <= targetY).pop();
+        if (candidate) endY = candidate;
+      }
+      const sliceHeight = Math.max(1, endY - startY);
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sliceHeight;
+      pageCanvas.getContext('2d').drawImage(canvas, 0, startY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+      if (pageIndex > 0) pdf.addPage();
+      const image = pageCanvas.toDataURL('image/jpeg', 0.96);
+      const imageHeight = sliceHeight * printableWidth / canvas.width;
+      pdf.addImage(image, 'JPEG', margin, margin, printableWidth, imageHeight, undefined, 'FAST');
+      startY = endY;
+      pageIndex += 1;
+    }
+    const blob = pdf.output('blob');
     if (!(blob instanceof Blob) || blob.size === 0) throw new Error('تعذر إنشاء ملف PDF.');
     const signature = await blob.slice(0, 5).text();
     if (signature !== '%PDF-') throw new Error('ملف PDF الناتج غير صالح. أعد المحاولة.');
@@ -227,6 +264,10 @@ async function shareOrDownloadOrderPdf(blob, filename, orderNumber) {
       directory: Directory.Cache,
       recursive: true,
     });
+    const savedContent = await Filesystem.readFile({ path: `order-pdfs/${filename}`, directory: Directory.Cache });
+    const encodedContent = String(savedContent.data || '').replace(/^data:[^,]+,/, '');
+    const savedSignature = atob(encodedContent.slice(0, 24));
+    if (!savedSignature.startsWith('%PDF-')) throw new Error('تعذر التحقق من ملف PDF المحفوظ على الهاتف. أعد المحاولة.');
     await Share.share({
       title,
       text: `ملف PDF للطلب ${orderNumber}`,
@@ -319,6 +360,7 @@ export default function OrdersScreen({ vendor }) {
     setError('');
     setActionMessage('');
     try {
+      await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
       const blob = await createOrderPdfBlob(order, vendor.vendorName);
       const safeOrderNumber = String(order.order_number || order.id || 'order').replace(/[^a-zA-Z0-9._-]/g, '-');
       const filename = `order-${safeOrderNumber}.pdf`;
@@ -419,6 +461,9 @@ export default function OrdersScreen({ vendor }) {
           </article>;
         })}
       </div>
+      {creatingPdfOrderId && <div role="status" aria-live="polite" className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/55 p-4 text-center text-white backdrop-blur-sm">
+        <div className="rounded-2xl bg-slate-900/90 px-6 py-5 shadow-xl"><RefreshCw className="mx-auto h-8 w-8 animate-spin text-teal-300" /><p className="mt-3 font-bold">جارٍ تجهيز ملف PDF للطلب</p><p className="mt-1 text-xs text-slate-300">قد يستغرق ذلك لحظات، لا تغلق التطبيق.</p></div>
+      </div>}
     </div>
   );
 }

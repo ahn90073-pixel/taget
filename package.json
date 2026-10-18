@@ -20,6 +20,7 @@
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.3",
     "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/geolocation": "^8.2.4",
     "@capacitor/ios": "^8.5.3",
     "@capacitor/push-notifications": "^8.0.0",
     "@capacitor/share": "^8.0.3",
@@ -27,7 +28,7 @@
     "@supabase/supabase-js": "^2.57.4",
     "firebase": "^12.19.0",
     "framer-motion": "^14.0.0",
-    "html2pdf.js": "^0.14.0",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.446.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

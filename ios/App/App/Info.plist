@@ -22,6 +22,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>يُستخدم موقعك، بعد موافقتك، لتسهيل وصول مندوب الشحن إلى المتجر وتسريع الاستجابة للطلبات.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>يُستخدم موقعك، بعد موافقتك، لتسهيل وصول مندوب الشحن إلى المتجر وتسريع الاستجابة للطلبات.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

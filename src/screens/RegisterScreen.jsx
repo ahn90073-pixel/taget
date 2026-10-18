@@ -13,6 +13,7 @@ import {
   User,
 } from 'lucide-react';
 import { isAndroidNative, isGoogleNativeAuthAvailable } from '@/lib/firebaseAuth';
+import { getStoreLocation } from '@/utils/storeLocation';
 
 export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, onGoogleAuthRestart }) {
   const androidApp = isAndroidNative();
@@ -29,15 +30,18 @@ export default function RegisterScreen({ onAuthComplete, onGoogleAuthComplete, o
   const [error, setError] = useState('');
   const isLogin = mode === 'login';
 
-  const handleRequestLocation = () => {
+  const handleRequestLocation = async () => {
     setLocationMessage('');
-    if (!navigator.geolocation) { setLocationMessage('متصفحك لا يدعم تحديد الموقع. يمكنك المتابعة دون مشاركة موقعك.'); return; }
     setLocationBusy(true);
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => { setStoreLocation({ latitude: coords.latitude, longitude: coords.longitude }); setLocationMessage('تم تحديد الموقع. لن تتم مشاركته إلا مع إدارة المنصة لتسهيل الشحن.'); setLocationBusy(false); },
-      (err) => { setLocationMessage(err.code === 1 ? 'لم يتم السماح بالوصول للموقع. يمكنك تغيير الإذن من إعدادات الجهاز أو المتابعة دون الموقع.' : 'تعذر تحديد الموقع الآن. يمكنك المحاولة لاحقًا أو المتابعة دون مشاركة موقعك.'); setLocationBusy(false); },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
-    );
+    try {
+      const location = await getStoreLocation();
+      setStoreLocation(location);
+      setLocationMessage('تم تحديد الموقع. لن تتم مشاركته إلا مع إدارة المنصة لتسهيل الشحن.');
+    } catch (locationError) {
+      setLocationMessage(locationError.message || 'تعذر تحديد الموقع الآن. يمكنك المحاولة لاحقًا أو المتابعة دون مشاركة موقعك.');
+    } finally {
+      setLocationBusy(false);
+    }
   };
   const handleSubmit = async (event) => {
     event.preventDefault();

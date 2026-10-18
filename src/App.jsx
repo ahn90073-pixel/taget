@@ -338,7 +338,10 @@ function App() {
     try { location = JSON.parse(window.localStorage.getItem(`taget_pending_store_location_${userId}`) || 'null'); } catch { return; }
     if (!location) return;
     notificationsApi.saveLocation(companyId, location).then(() => {
-      window.localStorage.removeItem(`taget_pending_store_location_${userId}`);
+      try {
+        window.localStorage.setItem(`taget_saved_store_location_${userId}`, JSON.stringify(location));
+        window.localStorage.removeItem(`taget_pending_store_location_${userId}`);
+      } catch { /* Successful server sync remains authoritative. */ }
     }).catch((error) => console.warn('Could not sync the merchant-approved location yet.', error));
   }, [vendor?.apiCompanyId, accountUser?.id]);
 
