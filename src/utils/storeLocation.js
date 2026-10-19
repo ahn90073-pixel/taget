@@ -11,8 +11,8 @@ function explainLocationError(error) {
   if (message.includes('permission') || message.includes('denied')) {
     return 'لم يتم السماح بالوصول للموقع. فعّل إذن الموقع لتطبيق التاجر من إعدادات التطبيقات، ثم حاول مرة أخرى.';
   }
-  if (message.includes('timeout') || message.includes('unavailable')) {
-    return 'تعذر تحديد موقع الهاتف الآن. تأكد من تشغيل خدمة الموقع وأنك في مكان يمكن استقبال الإشارة فيه، ثم حاول مرة أخرى.';
+  if (message.includes('timeout') || message.includes('unavailable') || message.includes('obtain location in time')) {
+    return 'استغرق تحديد الموقع وقتًا أطول من المتاح. تم توسيع المهلة وإضافة محاولة بدقة أقل؛ جرّب مرة أخرى قرب نافذة أو خارج المبنى مع إبقاء خدمة الموقع والإنترنت مفعّلين.';
   }
   return 'تعذر تحديد الموقع الآن. تحقق من تشغيل خدمة الموقع وإذن التطبيق من إعدادات الهاتف، ثم حاول مرة أخرى.';
 }
@@ -23,12 +23,31 @@ function browserPosition() {
       reject(new Error('هذا الجهاز لا يدعم تحديد الموقع. يمكنك متابعة استخدام التطبيق دون مشاركة موقعك.'));
       return;
     }
+    const options = { enableHighAccuracy: true, timeout: 45000, maximumAge: 120000 };
     navigator.geolocation.getCurrentPosition(resolve, (error) => {
-      reject(new Error(error.code === 1
-        ? 'لم يتم السماح بالوصول للموقع. فعّل إذن الموقع لتطبيق التاجر من إعدادات التطبيقات، ثم حاول مرة أخرى.'
-        : explainLocationError(error.message)));
-    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 });
+      if (error.code === 1) {
+        reject(new Error('لم يتم السماح بالوصول للموقع. فعّل إذن الموقع لتطبيق التاجر من إعدادات التطبيقات، ثم حاول مرة أخرى.'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(resolve, (retryError) => {
+        reject(new Error(explainLocationError(retryError.message || error.message)));
+      }, { ...options, enableHighAccuracy: false, timeout: 30000 });
+    }, options);
   });
+}
+
+async function nativePosition(options) {
+  try {
+    return await Geolocation.getCurrentPosition(options);
+  } catch (error) {
+    const message = String(error?.message || error || '').toLowerCase();
+    if (message.includes('permission') || message.includes('denied')) throw error;
+    return Geolocation.getCurrentPosition({
+      enableHighAccuracy: false,
+      timeout: 30000,
+      maximumAge: 120000,
+    });
+  }
 }
 
 export async function getStoreLocation() {
@@ -51,10 +70,10 @@ export async function getStoreLocation() {
 
   let position;
   try {
-    position = await Geolocation.getCurrentPosition({
+    position = await nativePosition({
       enableHighAccuracy: permissions.location === 'granted',
-      timeout: 20000,
-      maximumAge: 60000,
+      timeout: 45000,
+      maximumAge: 120000,
     });
   } catch (error) {
     throw new Error(explainLocationError(error));
